@@ -1,5 +1,7 @@
 from abc import ABC, abstractmethod
+
 from .result import MetricResult
+
 
 class Metric(ABC):
 
@@ -7,5 +9,5 @@ class Metric(ABC):
     higher_is_better = False
 
     @abstractmethod
-    def compute(self, ground_truth, estimated) -> MetricResult:
+    def compute(self, ground_truth, estimated, **params) -> MetricResult:
         pass
