@@ -1,3 +1,7 @@
+"""Distance-based benchmark metric implementations."""
+
+from __future__ import annotations
+
 import numpy as np
 
 from .base import Metric
@@ -10,13 +14,18 @@ class MSEMetric(Metric):
     name = "mse"
     higher_is_better = False
 
-    def compute(self, ground_truth, estimated, **params) -> MetricResult:
+    def compute(
+        self,
+        ground_truth: np.ndarray,
+        estimated: np.ndarray,
+        **_params: object,
+    ) -> MetricResult:
         """Compute ``mean((ground_truth - estimated) ** 2)``."""
         difference = ground_truth - estimated
 
         return MetricResult(
             metric_name=self.name,
-            value=float(np.mean(difference ** 2)),
+            value=float(np.mean(difference**2)),
             higher_is_better=self.higher_is_better,
         )
 
@@ -27,7 +36,12 @@ class MAEMetric(Metric):
     name = "mae"
     higher_is_better = False
 
-    def compute(self, ground_truth, estimated, **params) -> MetricResult:
+    def compute(
+        self,
+        ground_truth: np.ndarray,
+        estimated: np.ndarray,
+        **_params: object,
+    ) -> MetricResult:
         """Compute ``mean(abs(ground_truth - estimated))``."""
         difference = ground_truth - estimated
 
@@ -44,16 +58,18 @@ class NormalizedMSEMetric(Metric):
     name = "mse_normalized"
     higher_is_better = False
 
-    def compute(self, ground_truth, estimated, **params) -> MetricResult:
+    def compute(
+        self,
+        ground_truth: np.ndarray,
+        estimated: np.ndarray,
+        **_params: object,
+    ) -> MetricResult:
         """Compute normalized MSE, falling back to MSE for zero variance."""
         difference = ground_truth - estimated
-        mse = np.mean(difference ** 2)
+        mse = np.mean(difference**2)
         variance = np.var(ground_truth)
 
-        if variance == 0:
-            value = float(mse)
-        else:
-            value = float(mse / variance)
+        value = float(mse) if variance == 0 else float(mse / variance)
 
         return MetricResult(
             metric_name=self.name,
@@ -68,15 +84,21 @@ class R2Metric(Metric):
     name = "r2"
     higher_is_better = True
 
-    def compute(self, ground_truth, estimated, **params) -> MetricResult:
+    def compute(
+        self,
+        ground_truth: np.ndarray,
+        estimated: np.ndarray,
+        **_params: object,
+    ) -> MetricResult:
         """Compute ``1 - residual_sum_of_squares / total_sum_of_squares``."""
         residual_sum_of_squares = np.sum((estimated - ground_truth) ** 2)
         total_sum_of_squares = np.sum((ground_truth - np.mean(ground_truth)) ** 2)
 
-        if total_sum_of_squares == 0:
-            value = float(np.nan)
-        else:
-            value = float(1 - residual_sum_of_squares / total_sum_of_squares)
+        value = (
+            float(np.nan)
+            if total_sum_of_squares == 0
+            else float(1 - residual_sum_of_squares / total_sum_of_squares)
+        )
 
         return MetricResult(
             metric_name=self.name,

@@ -1,3 +1,5 @@
+"""Scoring utilities for benchmark metrics."""
+
 from __future__ import annotations
 
 from .registry import METRIC_ALIASES, METRIC_KEYS, METRIC_SPECS
@@ -16,8 +18,8 @@ class Scorer:
     def __init__(
         self,
         metric_names: list[str] | None = None,
-        metric_params: dict[str, dict] | None = None,
-        fail_fast: bool = False,
+        metric_params: dict[str, dict[str, object]] | None = None,
+        fail_fast: bool = False,  # noqa: FBT001, FBT002 - Preserve public constructor API.
     ) -> None:
         """Create a scorer for selected metrics.
 
@@ -34,7 +36,7 @@ class Scorer:
         self.metric_params = self._normalize_metric_params(metric_params or {})
         self.fail_fast = fail_fast
 
-    def score(self, ground_truth, estimated) -> dict[str, float | None]:
+    def score(self, ground_truth: object, estimated: object) -> dict[str, float | None]:
         """Return run-record compatible metric values for one run.
 
         The returned dictionary uses every canonical key in ``METRIC_KEYS``.
@@ -77,19 +79,23 @@ class Scorer:
         for metric_name in metric_names:
             normalized_name = METRIC_ALIASES.get(metric_name, metric_name)
             if normalized_name not in METRIC_SPECS:
-                raise KeyError(f"Unknown metric: {metric_name}")
+                msg = f"Unknown metric: {metric_name}"
+                raise KeyError(msg)
             normalized_names.append(normalized_name)
 
         return tuple(dict.fromkeys(normalized_names))
 
     @staticmethod
-    def _normalize_metric_params(metric_params: dict[str, dict]) -> dict[str, dict]:
+    def _normalize_metric_params(
+        metric_params: dict[str, dict[str, object]],
+    ) -> dict[str, dict[str, object]]:
         """Normalize metric parameter keys so aliases share one config path."""
         normalized_params = {}
         for metric_name, params in metric_params.items():
             normalized_name = METRIC_ALIASES.get(metric_name, metric_name)
             if normalized_name not in METRIC_SPECS:
-                raise KeyError(f"Unknown metric: {metric_name}")
+                msg = f"Unknown metric: {metric_name}"
+                raise KeyError(msg)
             normalized_params[normalized_name] = params
 
         return normalized_params

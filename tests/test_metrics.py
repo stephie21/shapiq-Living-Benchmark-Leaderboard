@@ -1,9 +1,11 @@
+from __future__ import annotations
+
 import math
 import unittest
 
 import numpy as np
 
-from metrics import METRICS, METRIC_KEYS, Scorer
+from metrics import METRIC_KEYS, METRICS, Scorer
 from runner.aggregator import aggregate_metric_values, aggregate_run_records
 
 

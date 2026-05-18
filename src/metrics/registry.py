@@ -1,8 +1,15 @@
-from dataclasses import dataclass
+"""Registry of benchmark metrics and metric metadata."""
 
-from .base import Metric
+from __future__ import annotations
+
+from dataclasses import dataclass
+from typing import TYPE_CHECKING
+
 from .distance_metrics import MAEMetric, MSEMetric, NormalizedMSEMetric, R2Metric
 from .ranking_metrics import KendallTauMetric, PrecisionAtKMetric, SpearmanMetric
+
+if TYPE_CHECKING:
+    from .base import Metric
 
 
 @dataclass(frozen=True)
