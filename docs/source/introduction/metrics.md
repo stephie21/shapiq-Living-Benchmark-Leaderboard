@@ -21,7 +21,7 @@ The Aggregator does not recompute metrics and the Scorer does not aggregate acro
 
 ## Metric Registry
 
-Metrics are registered in `src/metrics/registry.py`.
+Metrics are registered in `src/leaderboard/metrics/registry.py`.
 Each entry has a `MetricSpec` with:
 
 * `name`: the canonical run-record key.
@@ -119,7 +119,7 @@ Use `Scorer` when a benchmark run already has aligned `ground_truth` and `estima
 ```python
 import numpy as np
 
-from metrics.scorer import Scorer
+from leaderboard.metrics import Scorer
 
 scorer = Scorer(
     metric_names=["mse", "mse_normalized", "r2", "spearman", "precision_at_k"],
