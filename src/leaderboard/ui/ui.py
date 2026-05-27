@@ -11,6 +11,8 @@ import plotly.graph_objects as go
 import pandas as pd
 from dotenv import load_dotenv
 
+from pathlib import Path
+
 from leaderboard.storage.connection import MongoDBClient, MongoDBConnectionError
 from leaderboard.ui.ui_exceptions import UnknownDataLoadingMethodError
 from leaderboard.metrics import METRICS
@@ -19,10 +21,11 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(
 
 load_dotenv()
 
-RESULTS_PATH = "results_raw.jsonl"
+CURRENT_DIR = Path(__file__).parent
+RESULTS_PATH = f"{CURRENT_DIR}/results_raw.jsonl"
 ZERO_THRESHOLD = 1e-7
 DASH_STYLES = ["solid", "dash", "dot", "dashdot", "longdash"]
-LOADING_METHOD = "mongodb"  # "local" or "mongodb"
+LOADING_METHOD = "local"  # "local" or "mongodb"
 
 # Temporary seed determination
 SEED_IDs = ["approx_seed", "seed"]  # List of possible seed identifier columns in the raw data

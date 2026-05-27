@@ -190,6 +190,17 @@ The documentation of ``shapiq`` can be found at https://shapiq.readthedocs.io.
 If you are new to Shapley values or Shapley interactions, we recommend starting with the [introduction](https://shapiq.readthedocs.io/en/latest/introduction/) and the [examples & tutorials](https://shapiq.readthedocs.io/en/latest/auto_examples/index.html).
 There is a lot of great resources available to get you started with Shapley values and interactions.
 
+
+## 📚 HuggingFace Spaces - shapiq Leaderboard
+
+See https://huggingface.co/spaces/JJ248/shapiq-leaderboard
+
+---
+sdk: gradio
+app_file: src/leaderboard/ui/ui.py
+---
+
+
 ## 💬 Citation
 
 If you use ``shapiq`` and enjoy it, please consider citing our [NeurIPS paper](https://arxiv.org/abs/2410.01649) or consider starring this repository.
