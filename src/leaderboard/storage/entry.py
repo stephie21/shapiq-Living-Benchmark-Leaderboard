@@ -9,17 +9,17 @@ import sys
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from leaderboard.storage.connection import MongoDBClient
-from leaderboard.storage.metrics import MetricsLoader
+from leaderboard.storage.connection import DatabaseClientFactory
 
 if TYPE_CHECKING:
+    from leaderboard.storage.connection import DatabaseClient
     from leaderboard.storage.data_classes import RunConfig
 
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 
 
-def _get_config(db: MongoDBClient, idx: int) -> RunConfig:
+def _get_config(db: DatabaseClient, idx: int) -> RunConfig:
     """Helper function to retrieve a RunConfig by index from the database."""
     configs = db.get_unique_configs()
     if not configs:
@@ -36,7 +36,7 @@ def _get_config(db: MongoDBClient, idx: int) -> RunConfig:
 # ---------------------------------------------------------------------------
 
 
-def cmd_upload(db: MongoDBClient, args: argparse.Namespace) -> None:
+def cmd_upload(db: DatabaseClient, args: argparse.Namespace) -> None:
     """Upload runs from a JSONL file, where each line is a JSON object representing a run document to be inserted into MongoDB."""
     if not Path(args.file).exists():
         logging.error("File not found: %s", args.file)
@@ -58,31 +58,72 @@ def cmd_upload(db: MongoDBClient, args: argparse.Namespace) -> None:
     logging.info("Inserted %s runs (%s lines skipped).", len(entries), skipped)
 
 
-def cmd_configs(db: MongoDBClient, _args: argparse.Namespace) -> None:
+def cmd_configs(db: DatabaseClient, _args: argparse.Namespace) -> None:
     """List all unique RunConfigs in the database with their index for reference in other commands."""
     configs = db.get_unique_configs()
     logging.info("Found %s unique configuration(s):", len(configs))
-    for i, cfg in enumerate(configs):
-        logging.info("  [%s] %s", i, cfg)
+    for _i, cfg in enumerate(configs):
+        logging.info("  [%s] %s", _i, cfg)
 
 
-def cmd_metrics(db: MongoDBClient, args: argparse.Namespace) -> None:
-    """Show aggregated metrics for a specific configuration, identified by its index from the configs command."""
-    config = _get_config(db, args.config_index)
-    logging.info("Aggregated metrics for config [%s]:", args.config_index)
-    aggregated = MetricsLoader(db).aggregate(config)
-    logging.info(
-        "  %s", json.dumps(aggregated, indent=2) if aggregated else "  (no metric data found)"
-    )
+def cmd_investigate(db: DatabaseClient, _args: argparse.Namespace) -> None:
+    """Investigate duplicate configurations."""
+    configs = db.get_unique_configs()
+    logging.info("Found %s unique configuration(s):", len(configs))
+    for _i, cfg in enumerate(configs):
+        runs = db.get_by_config(cfg)
+
+        # Check for duplicates by looking at runs with the same config and seed
+        seed_counts = {}
+        for r in runs:
+            seed = r.get("seed")
+            if not seed:
+                seed = r.get("approx_seed")
+            seed_counts[seed] = seed_counts.get(seed, 0) + 1
+
+        duplicates = {s: c for s, c in seed_counts.items() if c > 1}
+        if duplicates:
+            logging.info(
+                "Config [%s] has %s duplicate seed(s): %s", _i, len(duplicates), duplicates
+            )
+            logging.info("Config details: %s", cfg)
 
 
-def cmd_count(db: MongoDBClient, args: argparse.Namespace) -> None:
+def cmd_delete_duplicates(db: DatabaseClient, _args: argparse.Namespace) -> None:
+    """Delete duplicate runs for each configuration, keeping only one run per seed per unique config."""
+    configs = db.get_unique_configs()
+    logging.info("Found %s unique configuration(s):", len(configs))
+    total_deleted = 0
+    for _i, cfg in enumerate(configs):
+        runs = db.get_by_config(cfg)
+
+        # Group runs by seed
+        seed_to_runs = {}
+        for r in runs:
+            seed = r.get("seed")
+            if not seed:
+                seed = r.get("approx_seed")
+            seed_to_runs.setdefault(seed, []).append(r)
+
+        # Identify duplicates and delete all but one run per seed
+        for runs_with_seed in seed_to_runs.values():
+            if len(runs_with_seed) > 1:
+                # Keep the first run and delete the rest
+                to_delete = runs_with_seed[1:]
+                for r in to_delete:
+                    deleted_count = db.delete_by_id(r["run_id"])
+                    total_deleted += deleted_count
+
+    logging.info("Deleted %s duplicate run(s).", total_deleted)
+
+
+def cmd_count(db: DatabaseClient, args: argparse.Namespace) -> None:
     """Count runs for a specific configuration, identified by its index from the configs command."""
     config = _get_config(db, args.config_index)
     logging.info("Config [%s] has %s run(s).", args.config_index, db.count_by_config(config))
 
 
-def cmd_games(db: MongoDBClient, _args: argparse.Namespace) -> None:
+def cmd_games(db: DatabaseClient, _args: argparse.Namespace) -> None:
     """List distinct game names."""
     games = db.get_games()
     logging.info("Distinct games (%s):", len(games))
@@ -90,7 +131,7 @@ def cmd_games(db: MongoDBClient, _args: argparse.Namespace) -> None:
         logging.info("  - %s", g)
 
 
-def cmd_approximators(db: MongoDBClient, _args: argparse.Namespace) -> None:
+def cmd_approximators(db: DatabaseClient, _args: argparse.Namespace) -> None:
     """List distinct approximator names."""
     approximators = db.get_approximators()
     logging.info("Distinct approximators (%s):", len(approximators))
@@ -99,7 +140,7 @@ def cmd_approximators(db: MongoDBClient, _args: argparse.Namespace) -> None:
     logging.info()
 
 
-def cmd_delete_all(db: MongoDBClient, args: argparse.Namespace) -> None:
+def cmd_delete_all(db: DatabaseClient, args: argparse.Namespace) -> None:
     """Delete ALL documents in the collection. Use with caution! Requires --confirm flag to execute."""
     if not args.confirm:
         logging.info("Pass --confirm to actually delete all documents.")
@@ -107,7 +148,7 @@ def cmd_delete_all(db: MongoDBClient, args: argparse.Namespace) -> None:
     logging.info("Deleted %s document(s).", db.delete_all())
 
 
-def cmd_delete_config(db: MongoDBClient, args: argparse.Namespace) -> None:
+def cmd_delete_config(db: DatabaseClient, args: argparse.Namespace) -> None:
     """Delete all runs for a specific configuration, identified by its index from the configs command."""
     config = _get_config(db, args.config_index)
     logging.info(
@@ -132,11 +173,11 @@ def _build_parser() -> argparse.ArgumentParser:
 
     sub.add_parser("configs", help="List all unique RunConfigs.")
 
-    p = sub.add_parser("metrics", help="Show aggregated metrics for a config.")
-    p.add_argument("--config-index", type=int, default=0)
-
     p = sub.add_parser("count", help="Count runs for a config.")
     p.add_argument("--config-index", type=int, default=0)
+
+    sub.add_parser("investigate", help="Investigate duplicate configurations.")
+    sub.add_parser("delete-duplicates", help="Delete duplicate runs for each configuration.")
 
     sub.add_parser("games", help="List distinct game names.")
     sub.add_parser("approximators", help="List distinct approximator names.")
@@ -153,10 +194,11 @@ def _build_parser() -> argparse.ArgumentParser:
 _COMMANDS = {
     "upload": cmd_upload,
     "configs": cmd_configs,
-    "metrics": cmd_metrics,
     "count": cmd_count,
     "games": cmd_games,
     "approximators": cmd_approximators,
+    "investigate": cmd_investigate,
+    "delete-duplicates": cmd_delete_duplicates,
     "delete-all": cmd_delete_all,
     "delete-config": cmd_delete_config,
 }
@@ -165,7 +207,7 @@ _COMMANDS = {
 def main() -> None:
     """Entry point for the CLI. Parses arguments, connects to MongoDB, and dispatches to the appropriate command function."""
     args = _build_parser().parse_args()
-    mongoDBClient = MongoDBClient.from_env()
+    mongoDBClient = DatabaseClientFactory.create_client("mongodb", db_args={})
     with mongoDBClient as db:
         _COMMANDS[args.command](db, args)
 
