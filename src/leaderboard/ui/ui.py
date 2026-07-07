@@ -526,9 +526,12 @@ def compute_elo_for_bucket(
     n_perm = n_perm if isinstance(n_perm, int) else 1
     metric_label = metric or "all"
     index_label = index or "all"
+    game_label = game or "all"
     info_md = (
         f"Metric: **{metric_label}** | Index: **{index_label}** | Game: **{game if game != 'all' else 'all'}** | "
         f"Bootstrap samples: **{n_bs}** | Permutations: **{n_perm}**"
+        + (" | ⚠️ ELO and CD rankings may diverge when aggregating over multiple indices and/or multiple games."
+           if index_label == "all" or game_label == "all" else "")
     )
 
     return leaderboard_df, fig, info_md
