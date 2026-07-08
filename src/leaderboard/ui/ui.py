@@ -675,8 +675,8 @@ with gr.Blocks(title="shapiq Leaderboard") as demo:
                 label="Approximators",
             )
             with gr.Column(scale=0, min_width=120):
-                elo_deselect_btn = gr.Button("Alle abwählen", size="sm")
-                elo_reset_btn = gr.Button("Zurücksetzen", size="sm")
+                elo_deselect_btn = gr.Button("Deselect all", size="sm")
+                elo_reset_btn = gr.Button("Reset", size="sm")
                 elo_jump_btn = gr.Button("🔍 Open in Detailed Data Tab", size="sm", variant="secondary")
 
         elo_deselect_btn.click(fn=list, outputs=elo_approx_filter)
@@ -984,8 +984,8 @@ with gr.Blocks(title="shapiq Leaderboard") as demo:
                         label="Approximatoren",
                     )
                     with gr.Column(scale=0, min_width=120):
-                        deselect_btn = gr.Button("Alle abwählen", size="sm")
-                        reset_btn = gr.Button("Zurücksetzen", size="sm")
+                        deselect_btn = gr.Button("Deselect all", size="sm")
+                        reset_btn = gr.Button("Reset", size="sm")
                         jump_buttons[metric] = gr.Button(
                             "🔍 Open in Detailed Data Tab", size="sm", variant="secondary",
                         )
@@ -1152,9 +1152,9 @@ with gr.Blocks(title="shapiq Leaderboard") as demo:
 
         with gr.Row():
             det_search_btn = gr.Button("Search", variant="primary")
-            det_reset_btn = gr.Button("Filter zurücksetzen", variant="secondary")
+            det_reset_btn = gr.Button("Reset filters", variant="secondary")
 
-        det_count = gr.Markdown(f"**{len(raw_records)} Runs gefunden.**")
+        det_count = gr.Markdown(f"**{len(raw_records)} Runs found.**")
         det_table = gr.Dataframe(value=_records_to_df(raw_records), interactive=False)
 
         async def query_raw(
@@ -1312,7 +1312,7 @@ with gr.Blocks(title="shapiq Leaderboard") as demo:
         inputs=_det_filters,
         outputs=[det_count, det_table],
     ).then(
-        fn=lambda: gr.Info("Daten geladen — bitte zum 'Detailed Data' Tab wechseln"),
+        fn=lambda: gr.Info("Data loaded - please switch to \"Detailed Data\" Tab"),
         inputs=[],
         outputs=[],
     )
@@ -1327,7 +1327,7 @@ with gr.Blocks(title="shapiq Leaderboard") as demo:
             inputs=_det_filters,
             outputs=[det_count, det_table],
         ).then(
-            fn=lambda: gr.Info("Daten geladen — bitte zum 'Detailed Data' Tab wechseln"),
+            fn=lambda: gr.Info("Data loaded - please switch to \"Detailed Data\" Tab"),
             inputs=[],
             outputs=[],
         )
@@ -1345,7 +1345,7 @@ with gr.Blocks(title="shapiq Leaderboard") as demo:
         inputs=_det_filters,
         outputs=[det_count, det_table],
     ).then(
-        fn=lambda: gr.Info("Daten geladen — bitte zum 'Detailed Data' Tab wechseln"),
+        fn=lambda: gr.Info("Data loaded - please switch to \"Detailed Data\" Tab"),
         inputs=[],
         outputs=[],
     )
