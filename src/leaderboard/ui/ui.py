@@ -556,6 +556,10 @@ def compute_cd_for_bucket(
         metric_names=[str(metric)] if metric != "all" else None,
         indices=[str(index)] if index != "all" else None,
         game_names=[str(game)] if game != "all" else None,
+        group_keys=[
+            "game_name", "index", "max_order", "budget",
+            "ground_truth_method", "approx_seed",
+        ],
     )
     result = scorer.score(df_raw_records)
     cd_result = result.metadata.get("cd_result")
