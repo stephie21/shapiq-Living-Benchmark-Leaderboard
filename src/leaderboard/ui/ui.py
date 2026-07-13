@@ -18,7 +18,7 @@ import plotly.graph_objects as go
 from dotenv import load_dotenv
 
 from leaderboard.metrics import METRICS
-from leaderboard.scoring.cd_scorer import CriticalDifferenceScorer
+from leaderboard.scoring.cd_scorer import CriticalDifferenceScorer, CriticalDifferenceResult
 from leaderboard.scoring.elo_scorer import EloScorer
 from leaderboard.storage.connection import DatabaseClientFactory, DBConnectionError
 
@@ -459,7 +459,7 @@ def compute_elo_for_bucket(
             yaxis={"visible": False},
             annotations=[
                 {
-                    "text": f"No approximators/data found for budget {budget} under this configuration",
+                    "text": f"No data found<br>for budget {budget}<br>under this configuration",
                     "xref": "paper",
                     "yref": "paper",
                     "x": 0.5,
@@ -510,7 +510,7 @@ def compute_elo_for_bucket(
         )
     )
 
-    fig.add_trace(go.Scatter(
+    """fig.add_trace(go.Scatter(
         x=approx_names,
         y=ci_lower,
         mode="markers",
@@ -522,7 +522,7 @@ def compute_elo_for_bucket(
         ),
         hoverinfo="skip",
         showlegend=False,
-    ))
+    ))"""
 
     shapes = [
         dict(
@@ -560,11 +560,15 @@ def compute_elo_for_bucket(
     metric_label = metric or "all"
     index_label = index or "all"
     game_label = game or "all"
+
+    n_groups = cast(int, result.metadata.get("n_groups", 0))
     info_md = (
         f"Metric: **{metric_label}** | Index: **{index_label}** | Game: **{game if game != 'all' else 'all'}** | "
         f"Bootstrap samples: **{n_bs}** | Permutations: **{n_perm}**"
         + (" | ⚠️ ELO and CD rankings may diverge when aggregating over multiple indices and/or multiple games."
            if index_label == "all" or game_label == "all" else "")
+        + (" | ⚠️ Confidence intervals are not meaningful with only one comparable group (single game selected)."
+           if n_groups <= 1 else "")
     )
 
     return leaderboard_df, fig, info_md
@@ -597,7 +601,7 @@ def compute_cd_for_bucket(
     result = scorer.score(df_raw_records)
     cd_result = result.metadata.get("cd_result")
 
-    if cd_result is None or len(cd_result.mean_ranks) < 2:
+    if not isinstance(cd_result, CriticalDifferenceResult) or len(cd_result.mean_ranks) < 2:
         fig = go.Figure()
         fig.update_layout(
             title=f"CD Diagram — no data for budget {budget}",
@@ -970,7 +974,7 @@ with gr.Blocks(title="shapiq Leaderboard") as demo:
             for bucket in BUDGET_BUCKETS:
                 budget_val = int(bucket["budget"])
                 t, f, info = compute_elo_for_bucket(filtered, budget_val, metric, index, game)
-                if first_info is None:
+                if first_info is None or first_info == "No data":
                     first_info = info
                 outputs.extend([gr.update(value=t, visible=True, max_height=1000), f])
             yield tuple([first_info, *outputs])
