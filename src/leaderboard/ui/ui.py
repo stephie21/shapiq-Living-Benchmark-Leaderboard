@@ -1694,8 +1694,7 @@ def main() -> None:
     demo.launch()
 
 
-demo: gr.Blocks | None = None
-
+from leaderboard.ui.ui import main
 
 if __name__ == "__main__":
     main()
