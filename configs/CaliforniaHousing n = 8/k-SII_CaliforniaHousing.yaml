@@ -1,7 +1,7 @@
-game: "Arrhythmia"
+game: "CaliforniaHousing"
 game_family: "local_xai"
-index: "SV"
-max_order: 1
+index: "k-SII"
+max_order: 3
 
 game_params:
   # --- Universal Game Control ---
@@ -28,25 +28,19 @@ game_params:
 
 ground_truth:
   strategy: "compute"
-  method: "TreeExplainer"
+  method: "ExactComputer"
 
 approximators:
-  - "OwenSamplingSV"
-  - "StratifiedSamplingSV"
-  - "SVARM"
-  - "UnbiasedKernelSHAP"
-  - "PermutationSamplingSV"
-  - "KernelSHAP"
-  - "kADDSHAP"
+  - "PermutationSamplingSII"
+  - "KernelSHAPIQ"
+  - "InconsistentKernelSHAPIQ"
+  - "SVARMIQ"
+  - "SHAPIQ"
   - "ProxySPEX"
   - "ProxySHAP"
 
 budgets:
   - 250
-  - 500
-  - 1000
-  - 5000
-  - 10000
 
 seeds:
   - 0

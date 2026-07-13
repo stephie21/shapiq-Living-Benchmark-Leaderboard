@@ -1,5 +1,5 @@
-game: "Arrhythmia"
-game_family: "local_xai"
+game: "AdultCensus"
+game_family: "global_xai"
 index: "SV"
 max_order: 1
 
@@ -28,7 +28,7 @@ game_params:
 
 ground_truth:
   strategy: "compute"
-  method: "TreeExplainer"
+  method: "ExactComputer"
 
 approximators:
   - "OwenSamplingSV"
@@ -79,3 +79,4 @@ seeds:
   - 27
   - 28
   - 29
+

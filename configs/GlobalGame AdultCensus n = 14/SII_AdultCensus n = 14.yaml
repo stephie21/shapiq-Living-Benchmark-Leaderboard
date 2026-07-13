@@ -1,7 +1,7 @@
-game: "Arrhythmia"
-game_family: "local_xai"
-index: "SV"
-max_order: 1
+game: "AdultCensus"
+game_family: "global_xai"
+index: "SII"
+max_order: 2
 
 game_params:
   # --- Universal Game Control ---
@@ -28,16 +28,14 @@ game_params:
 
 ground_truth:
   strategy: "compute"
-  method: "TreeExplainer"
+  method: "ExactComputer"
 
 approximators:
-  - "OwenSamplingSV"
-  - "StratifiedSamplingSV"
-  - "SVARM"
-  - "UnbiasedKernelSHAP"
-  - "PermutationSamplingSV"
-  - "KernelSHAP"
-  - "kADDSHAP"
+  - "PermutationSamplingSII"
+  - "KernelSHAPIQ"
+  - "InconsistentKernelSHAPIQ"
+  - "SVARMIQ"
+  - "SHAPIQ"
   - "ProxySPEX"
   - "ProxySHAP"
 
@@ -79,3 +77,4 @@ seeds:
   - 27
   - 28
   - 29
+
