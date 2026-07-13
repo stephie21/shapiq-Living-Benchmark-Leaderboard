@@ -92,23 +92,45 @@ def _get_seed(document: dict[str, Any]) -> int | None:
     """Extract the 'seed' field from *document*, if present and an integer."""
     seed = document.get("seed")
 
-    if not seed:
+    if seed is None:
         seed = document.get("approx_seed")
+
+    if seed is None or not isinstance(seed, int):
+        raise ValueError from None
 
     return seed
 
 
+def _matches_filter(document: dict[str, Any], filter_dict: dict[str, Any]) -> bool:
+    """Return True if *document* matches all key/value pairs in *filter_dict*.
+
+    Args:
+        document: The run document to check.
+        filter_dict: A dictionary of key/value pairs to match against the document.
+
+    Returns:
+        True if the document matches all key/value pairs in the filter, False otherwise.
+    """
+    for key, value in filter_dict.items():
+        if str(document.get(key, "")).strip() != str(value).strip():
+            return False
+
+    return True
+
+
 def _matches_config(document: dict[str, Any], config: RunConfig) -> bool:
     """Return True if *document* contains all key/value pairs in *config*."""
-    return (
-        document.get("game_name") == config.game_name
-        and document.get("n_players") == config.n_players
-        and document.get("approximator_name") == config.approximator_name
-        and document.get("index") == config.index
-        and document.get("max_order") == config.max_order
-        and document.get("budget") == config.budget
-        and document.get("ground_truth_method") == config.ground_truth_method
-    )
+    comparisons = {
+        "game_name": document.get("game_name") == config.game_name,
+        "n_players": document.get("n_players") == config.n_players,
+        "approximator_name": document.get("approximator_name") == config.approximator_name,
+        "index": document.get("index") == config.index,
+        "max_order": document.get("max_order") == config.max_order,
+        "budget": document.get("budget") == config.budget,
+        "ground_truth_method": (document.get("ground_truth_method") == config.ground_truth_method),
+    }
+
+    return all(comparisons.values())
 
 
 def _matches_config_with_seed(document: dict[str, Any], other_document: dict[str, Any]) -> bool:
@@ -116,4 +138,6 @@ def _matches_config_with_seed(document: dict[str, Any], other_document: dict[str
     document_config = RunConfig.from_dict(document)
 
     matches_config = _matches_config(other_document, document_config)
-    return matches_config and _get_seed(document) == _get_seed(other_document)
+    does_match_seed = _get_seed(document) == _get_seed(other_document)
+
+    return matches_config and does_match_seed

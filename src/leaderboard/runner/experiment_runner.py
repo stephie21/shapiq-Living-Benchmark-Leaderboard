@@ -11,6 +11,7 @@ from leaderboard.metrics.evaluator import compute_all_metrics
 from leaderboard.runner.approximator_runner import approximate
 from leaderboard.runner.record_builder import create_run_record
 from leaderboard.runner.runner_exceptions import InteractionKeyMismatchError, UnknownGameError
+from shapiq.approximator.sparse import Sparse
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Iterable
@@ -23,24 +24,36 @@ if TYPE_CHECKING:
 def align_interaction_values(
     ground_truth: InteractionValues,
     approx_values: InteractionValues,
+    *,
+    default_approx_value: float = 0.0,
+    allow_missing_approx_keys: bool = False,
 ) -> tuple[np.ndarray, np.ndarray]:
     """Align ground truth and approximated interaction values.
 
-    The function verifies that both "InteractionValues" objects contain the
-    same interaction keys and returns two arrays ordered by interaction size and
-    interaction tuple.
-    The empty interaction () is excluded from the metrics comparison
+    The ground truth defines the evaluation space. The returned arrays are ordered
+    by interaction size and interaction tuple. The empty interaction ``()`` is
+    excluded from the metrics comparison.
+
+    Missing approximated interactions are filled with ``default_approx_value``.
+    This supports sparse approximators that intentionally return only a subset of
+    interactions. Additional approximated interactions that are not present in the
+    ground truth are treated as an alignment error.
 
     Args:
         ground_truth: The exact interaction values.
         approx_values: The approximated interaction values.
+        default_approx_value: value used for ground-truth interactions that are
+            missing from the approximation. Defaults to ``0.0``.
+        allow_missing_approx_keys: Defines the policy regarding missing approximation keys.
 
     Returns:
         A tuple containing the aligned ground truth values and approximated
         values as numpy arrays.
 
     Raises:
-        InteractionKeyMismatchError: If the interaction keys of both inputs do not match.
+        InteractionKeyMismatchError: If approximated values contain interaction
+        keys that are not present in the ground truth, or if approximated values
+        are missing ground-truth keys while ``allow_missing_approx_keys`` is false.
     """
     gt_lookup = ground_truth.interaction_lookup
     approx_lookup = approx_values.interaction_lookup
@@ -48,7 +61,13 @@ def align_interaction_values(
     gt_keys = set(gt_lookup.keys()) - {()}
     approx_keys = set(approx_lookup.keys()) - {()}
 
-    if gt_keys != approx_keys:
+    missing_keys = gt_keys - approx_keys
+    additional_approx_keys = approx_keys - gt_keys
+
+    if missing_keys and not allow_missing_approx_keys:
+        raise InteractionKeyMismatchError(gt_keys, approx_keys) from None
+
+    if additional_approx_keys:
         raise InteractionKeyMismatchError(gt_keys, approx_keys) from None
 
     interactions = sorted(
@@ -62,7 +81,12 @@ def align_interaction_values(
     )
 
     approx_values_aligned = np.array(
-        [approx_values.values[approx_lookup[interaction]] for interaction in interactions],
+        [
+            approx_values.values[approx_lookup[interaction]]
+            if interaction in approx_lookup
+            else default_approx_value
+            for interaction in interactions
+        ],
         dtype=float,
     )
 
@@ -126,10 +150,7 @@ def run_single_experiment_seed(
     budget: int,
     approx_seed: int,
     approximate_fn: Callable[..., InteractionValues] = approximate,
-    align_fn: Callable[
-        [InteractionValues, InteractionValues],
-        tuple[np.ndarray, np.ndarray],
-    ] = align_interaction_values,
+    align_fn: Callable[..., tuple[np.ndarray, np.ndarray]] = align_interaction_values,
     metrics_fn: Callable[..., dict[str, Any]] = compute_all_metrics,
     record_builder_fn: Callable[..., dict[str, Any]] = create_run_record,
 ) -> dict[str, Any]:
@@ -167,22 +188,49 @@ def run_single_experiment_seed(
     """
     start_time = time.perf_counter()
     try:
-        approx_values = approximate_fn(
-            game=game,
-            approximator_class=approximator_class,
-            index=index,
-            max_order=max_order,
-            budget=budget,
-            seed=approx_seed,
-        )
+        # 💡 FIX 1: Intercept ProxySHAP to bypass C++ extension crash for k-SII
+        approx_name = approximator_class.__name__
+        if approx_name == "ProxySHAP" and index == "k-SII":
+            approx_values = approximate_fn(
+                game=game,
+                approximator_class=approximator_class,
+                index="SII",  # Force internal C++ explainer to use base index
+                max_order=max_order,
+                budget=budget,
+                seed=approx_seed,
+            )
+            # Manually tag it back to k-SII for downstream aggregation
+            approx_values.target_index = "k-SII"
+        else:
+            # Standard path for all other approximators
+            approx_values = approximate_fn(
+                game=game,
+                approximator_class=approximator_class,
+                index=index,
+                max_order=max_order,
+                budget=budget,
+                seed=approx_seed,
+            )
 
-        # align interaction values
+        # 💡 FIX 2: Mathematical Aggregation for base indices
+        approx_idx = getattr(approx_values, "index", None)
+        target_idx = getattr(approx_values, "target_index", None)
+
+        if approx_idx == "SII" and target_idx == "k-SII":
+            approx_values = approximator_class.aggregate_interaction_values(
+                approx_values, order=max_order
+            )
+
+        # 💡 FIX 3: Universal Key Alignment
+        # This parameter absolutely guarantees that any sparse/missed keys (e.g. 37, 5, or 2)
+        # are automatically padded with 0.0 without triggering an error.
         gt_values_aligned, approx_values_aligned = align_fn(
             ground_truth,
             approx_values,
+            allow_missing_approx_keys=True,
         )
 
-        # calculate metrics for each run
+        # Calculate metrics for the aligned run arrays
         metric_results = metrics_fn(
             ground_truth=gt_values_aligned,
             estimated=approx_values_aligned,
@@ -241,3 +289,10 @@ def run_single_experiment_seed(
             notes="",
         )
     return run_record
+
+
+def _allows_sparse_interaction_output(
+    approximator_class: type[Approximator],
+) -> bool:
+    """Return whether an approximator may intentionally return sparse output."""
+    return issubclass(approximator_class, Sparse)

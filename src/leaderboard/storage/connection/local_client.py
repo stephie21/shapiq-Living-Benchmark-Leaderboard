@@ -18,7 +18,7 @@ from dotenv import load_dotenv
 from leaderboard.storage.data_classes import RunConfig
 
 from .client import DatabaseClient
-from .utilities import _matches_config, _matches_config_with_seed
+from .utilities import _matches_config, _matches_config_with_seed, _matches_filter
 
 
 def _json_default(value: object) -> object:
@@ -74,6 +74,11 @@ class LocalClient(DatabaseClient):
             if "LOCAL_DB_PATH" in args
             else os.getenv("LOCAL_DB_PATH", "data/runs.jsonl")
         )
+
+        # if args["CREATE"] is set to True, create an empty file if it doesn't exist
+        if args.get("CREATE", False):
+            Path(path).parent.mkdir(parents=True, exist_ok=True)
+            Path(path).touch(exist_ok=True)
 
         return cls(path=path)
 
@@ -145,6 +150,8 @@ class LocalClient(DatabaseClient):
             self.insert_one(document)
             return True
 
+        to_be_inserted = document.copy()  # Start with the new document
+
         # Check for matching seed
         for existing_doc in existing_docs:
             if _matches_config_with_seed(document, existing_doc):
@@ -153,17 +160,20 @@ class LocalClient(DatabaseClient):
                     merged_doc = existing_doc.copy()
                     merged_doc.update(document)  # New document's fields override existing ones
 
+                    to_be_inserted.update(
+                        merged_doc
+                    )  # Update the document to be inserted with merged data
+
                     # delete only if duplicate
                     self.delete_by_id(
                         existing_doc.get("run_id")
                     )  # Remove old document(s) by unique identifier
-
-                    self.insert_one(merged_doc)  # Insert merged document
                 elif mode == "replace":
                     self.delete_by_config(new_doc_config)  # Remove old document(s)
-                    self.insert_one(document)  # Insert new document
                 elif mode == "skip":
                     return False  # Do not insert, as a matching document already exists
+
+        self.insert_one(to_be_inserted)  # Insert the document to be inserted
 
         return True
 
@@ -201,6 +211,15 @@ class LocalClient(DatabaseClient):
         """Delete all documents matching *config*. Returns deleted count."""
         documents = self._load()
         kept = [d for d in documents if not _matches_config(d, config)]
+        deleted = len(documents) - len(kept)
+        if deleted:
+            self._save(kept)
+        return deleted
+
+    def delete_by_filter(self, filter_dict: dict[str, Any]) -> int:
+        """Delete all documents matching the given filter."""
+        documents = self._load()
+        kept = [d for d in documents if not _matches_filter(d, filter_dict)]
         deleted = len(documents) - len(kept)
         if deleted:
             self._save(kept)
