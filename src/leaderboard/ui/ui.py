@@ -120,26 +120,6 @@ def load_and_aggregate(method: str = "mongodb", path: str | Path = RESULTS_PATH)
     return db_client.load_dataframe()
 
 
-def format_value[T](col: str, x: T, runtime_cols: list[str]) -> str:
-    """Formats a value for display in the leaderboard, handling small values and runtime formatting.
-
-    Args:
-        col: The column name (used to determine if it's a runtime column).
-        x: The value to format.
-        runtime_cols: List of column names that represent runtimes, which should be rounded to 4 decimals.
-
-    Returns:
-        A formatted string representation of the value.
-    """
-    if not isinstance(x, float):
-        return str(x)
-    if abs(x) < ZERO_THRESHOLD and col not in runtime_cols:
-        return "0"
-    if col in runtime_cols:
-        return f"{x:.4f}"
-    return f"{x:.4e}"
-
-
 def get_plot(
     df_agg: pd.DataFrame,
     selected_game: str,
@@ -433,8 +413,8 @@ def compute_elo_for_bucket(
         metric_names=[str(metric)] if metric != "all" else None,
         indices=[str(index)] if index != "all" else None,
         game_names=[str(game)] if game != "all" else None,
-        n_bootstrap_samples=50,
-        n_permutations=10,
+        n_bootstrap_samples=0,
+        n_permutations=1,
     )
     result = scorer.score(df_raw_records)
 
@@ -670,12 +650,18 @@ with gr.Blocks(title="shapiq Leaderboard") as demo:
         reload_btn = gr.Button("Reload Data", variant="secondary", scale=0)
 
     with gr.Tab("ELO Leaderboard"):
-        gr.Markdown("""
-        ## ELO Leaderboard by Budget Bucket
-
-        Approximators are ranked using pairwise ELO comparisons within each budget tier.
-        A higher ELO score means the approximator consistently outperforms others at this budget.
-        """)
+        with gr.Row():
+            gr.HTML("""
+                <div style='display: flex; justify-content: space-between; align-items: flex-start; width: 100%; margin-top: -10px; margin-left: -12px'>
+                    <div>
+                        <h2 style='margin-top: 0'>ELO Leaderboard by Budget Bucket</h2>
+                        <p>Approximators are ranked using pairwise ELO comparisons within each budget tier.
+                        A higher ELO score means the approximator consistently outperforms others at this budget.</p>
+                    </div>
+                </div>
+            """)
+            elo_jump_btn = gr.Button("🔍 Open in Detailed Data Tab", variant="secondary", scale=0,
+                                     elem_classes=["elo-jump-btn"])
 
         elo_metric_filter = gr.Dropdown(
             choices=["all", *available_metrics],
@@ -718,7 +704,7 @@ with gr.Blocks(title="shapiq Leaderboard") as demo:
             with gr.Column(scale=0, min_width=120):
                 elo_deselect_btn = gr.Button("Deselect all", size="sm")
                 elo_reset_btn = gr.Button("Reset", size="sm")
-                elo_jump_btn = gr.Button("🔍 Open in Detailed Data Tab", size="sm", variant="secondary")
+                elo_apply_btn = gr.Button("Apply", variant="primary", size="sm")
 
         elo_deselect_btn.click(fn=list, outputs=elo_approx_filter)
         elo_reset_btn.click(
@@ -896,9 +882,10 @@ with gr.Blocks(title="shapiq Leaderboard") as demo:
             )
             yield label_md, gr.update(value=table_df, visible=True, max_height=1000), fig, info_md, cd_fig
 
-        elo_approx_filter.change(
+        elo_apply_btn.click(
             fn=elo_filter_update,
-            inputs=[elo_bucket_idx_state, raw_state, elo_approx_filter, elo_metric_filter, elo_index_filter, elo_game_filter],
+            inputs=[elo_bucket_idx_state, raw_state, elo_approx_filter, elo_metric_filter, elo_index_filter,
+                    elo_game_filter],
             outputs=[elo_bucket_label, elo_table, elo_plot, elo_info_md, elo_cd_plot],
         )
 
@@ -988,7 +975,7 @@ with gr.Blocks(title="shapiq Leaderboard") as demo:
             ]
         ]
 
-        elo_approx_filter.change(
+        elo_apply_btn.click(
             fn=update_all_buckets,
             inputs=[raw_state, elo_approx_filter, elo_metric_filter, elo_index_filter, elo_game_filter],
             outputs=_all_bucket_outputs,
@@ -1064,7 +1051,7 @@ with gr.Blocks(title="shapiq Leaderboard") as demo:
     with gr.Tab("Compare Approximators"):
         gr.Markdown("## Side-by-side Approximator Comparison")
 
-        gr.HTML("<style>.compare-jump-btn { margin-left: auto !important; } .hidden-col { display: none !important; }</style>")
+        gr.HTML("<style>.compare-jump-btn { margin-left: auto !important; } .elo-jump-btn { margin-left: auto !important; } .hidden-col { display: none !important; }</style>")
         with gr.Row():
             add_col_btn = gr.Button("+ Add Approximator", scale=0, variant="primary")
             remove_col_btn = gr.Button("- Remove Approximator", scale=0, variant="primary", interactive=False)
@@ -1183,7 +1170,15 @@ with gr.Blocks(title="shapiq Leaderboard") as demo:
             )
 
     with gr.Tab("Detailed Data"):
-        gr.Markdown("## Detailed Data\nDirect MongoDB query of individual runs.")
+        with gr.Row():
+            gr.HTML("""
+                <div style='display: flex; justify-content: space-between; align-items: flex-start; width: 100%; margin-top: -10px; margin-left: -12px'>
+                    <div>
+                        <h2 style='margin-top: 0'>Detailed Data</h2>
+                        <p>Direct MongoDB query of individual runs.</p>
+                    </div>
+                </div>
+            """)
 
         with gr.Row():
             det_game = gr.Dropdown(choices=_all_games, label="Game", multiselect=True)
