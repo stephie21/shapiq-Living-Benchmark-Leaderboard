@@ -1694,7 +1694,5 @@ def main() -> None:
     demo.launch()
 
 
-from leaderboard.ui.ui import main
-
 if __name__ == "__main__":
     main()

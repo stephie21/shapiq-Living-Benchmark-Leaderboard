@@ -12,5 +12,5 @@ subprocess.check_call([
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "src"))
 
 # Now launch the actual app
-from leaderboard.ui.ui import demo
-demo.launch()
+from leaderboard.ui.ui import main
+main()
