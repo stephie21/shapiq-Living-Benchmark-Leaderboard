@@ -33,6 +33,8 @@ LOCAL_GAME_REGISTRY = {
     "Ionosphere": local_tabular.Ionosphere,
     "Nursery": local_tabular.Nursery,
     "Zoo": local_tabular.Zoo,
+    "Splice": local_tabular.Splice,
+    "TaiwaneseBankruptcy": local_tabular.TaiwaneseBankruptcy,
     "ImageClassifier": benchmark_image.ImageClassifier,
 }
 
@@ -88,6 +90,8 @@ GAME_PLAYER_COUNTS = {
     "Soybean": 35,
     "Annealing": 38,
     "SOUM": 10,
+    "Splice": 60,
+    "TaiwaneseBankruptcy": 94,
     "Arrhythmia": 279,
 }
 

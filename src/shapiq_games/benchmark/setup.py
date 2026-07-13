@@ -34,6 +34,8 @@ from shapiq_games.datasets import (
     load_mushroom,
     load_nursery,
     load_soybean,
+    load_splice,
+    load_taiwanese_bankruptcy,
     load_thyroid,
     load_zoo,
 )
@@ -57,6 +59,8 @@ AVAILABLE_DATASETS = [
     "mushroom",
     "nursery",
     "soybean",
+    "splice",
+    "taiwanese_bankruptcy",
     "thyroid",
     "zoo",
 ]
@@ -238,6 +242,14 @@ class GameBenchmarkSetup:
             x_data, y_data = load_soybean()
             self.feature_names: list = list(x_data.columns)
             self.dataset_type = "classification"
+        elif dataset_name == "splice":
+            x_data, y_data = load_splice()
+            self.feature_names: list = list(x_data.columns)
+            self.dataset_type = "classification"
+        elif dataset_name == "taiwanese_bankruptcy":
+            x_data, y_data = load_taiwanese_bankruptcy()
+            self.feature_names: list = list(x_data.columns)
+            self.dataset_type = "classification"
         elif dataset_name == "thyroid":
             x_data, y_data = load_thyroid()
             self.feature_names: list = list(x_data.columns)
@@ -251,7 +263,8 @@ class GameBenchmarkSetup:
                 f"Invalid dataset name {dataset_name}. Available datasets are 'adult_census', "
                 "'annealing', 'arrhythmia', 'bike_sharing', 'breast_cancer', "
                 "'california_housing', 'hepatitis', 'ionosphere', 'iris', 'monks1', "
-                "'monks2', 'monks3', 'mushroom', 'nursery', 'soybean', 'thyroid', 'zoo'."
+                "'monks2', 'monks3', 'mushroom', 'nursery', 'soybean', 'splice', "
+                "'taiwanese_bankruptcy', 'thyroid', 'zoo'."
             )
             raise ValueError(msg)
 

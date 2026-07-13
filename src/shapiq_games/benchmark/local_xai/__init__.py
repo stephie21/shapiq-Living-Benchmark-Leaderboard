@@ -15,6 +15,8 @@ from .benchmark_tabular import (
     Mushroom,
     Nursery,
     Soybean,
+    Splice,
+    TaiwaneseBankruptcy,
     Thyroid,
     Zoo,
 )
@@ -32,6 +34,8 @@ __all__ = [
     "Mushroom",
     "Nursery",
     "Soybean",
+    "Splice",
+    "TaiwaneseBankruptcy",
     "Thyroid",
     "Zoo",
     "SentimentAnalysis",

@@ -32,6 +32,8 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(
 # Annealing                 | 38
 # ERROR - Failed to check player count for Annealing: Cannot perform reduction 'median' with string dtype
 
+# Splice                    | 60
+# TaiwaneseBankruptcy       | 94
 # Arrhythmia                | 279
 # =======================================================
 
@@ -51,7 +53,9 @@ def main() -> None:
         "BreastCancer": "load_breast_cancer",
         "Ionosphere": "load_ionosphere",
         "Soybean": "load_soybean",
-        "Annealing": "load_annealing",
+        "Splice": "load_splice",
+        "TaiwaneseBankruptcy": "load_taiwanese_bankruptcy",
+        # "Annealing": "load_annealing",
         "Arrhythmia": "load_arrhythmia",
     }
 
@@ -64,7 +68,9 @@ def main() -> None:
             X, _ = loader_fn()
 
             # The number of columns in X is the exact number of players (n_players)
-            _ = X.shape[1]
+            n_players = X.shape[1]
+            output = f"{game_name:<25} | {n_players:<15}"
+            print(output)
 
         except Exception:
             logger.exception("Failed to check player count for %s", game_name)
