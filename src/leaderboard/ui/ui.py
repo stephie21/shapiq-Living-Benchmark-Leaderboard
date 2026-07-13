@@ -6,7 +6,7 @@ import asyncio
 import json
 import logging
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, TypeVar
+from typing import TYPE_CHECKING, Any, TypeVar, cast
 
 if TYPE_CHECKING:
     from collections.abc import AsyncGenerator, Iterator
@@ -494,6 +494,10 @@ def compute_elo_for_bucket(
         GLOBAL_APPROX_STYLES.get(name, {"color": "#636EFA"})["color"] for name in approx_names
     ]
 
+    ci_lower = [cast(float, r.metadata.get("ci_lower", r.score)) for r in sorted_rows]
+    ci_upper = [cast(float, r.metadata.get("ci_upper", r.score)) for r in sorted_rows]
+
+
     fig = go.Figure(
         go.Bar(
             x=approx_names,
@@ -501,13 +505,41 @@ def compute_elo_for_bucket(
             marker={"color": bar_colors},
             text=[f"{s:.1f}" for s in elo_scores],
             textposition="outside",
-            hovertemplate="<b>%{x}</b><br>ELO: %{y:.1f}<extra></extra>",
+            hovertemplate="<b>%{x}</b><br>ELO: %{y:.1f}<br>95% CI: [%{customdata[0]:.1f}, %{customdata[1]:.1f}]<extra></extra>",
+            customdata=list(zip(ci_lower, ci_upper)),
         )
     )
 
+    fig.add_trace(go.Scatter(
+        x=approx_names,
+        y=ci_lower,
+        mode="markers",
+        marker=dict(
+            symbol="line-ew",
+            size=30,
+            color="black",
+            line=dict(color="rgba(100,100,100,0.4)", width=1),
+        ),
+        hoverinfo="skip",
+        showlegend=False,
+    ))
+
+    shapes = [
+        dict(
+            type="rect",
+            x0=i - 0.4,
+            x1=i + 0.4,
+            y0=low,
+            y1=high,
+            fillcolor=color,
+            opacity=0.25,
+            line=dict(width=0),
+        )
+        for i, (low, high, color) in enumerate(zip(ci_lower, ci_upper, bar_colors))
+    ]
+
     y_min = min(elo_scores) - 20 if elo_scores else 950
-    y_range = max(elo_scores) - min(elo_scores) if elo_scores else 100
-    y_max = max(elo_scores) + max(50, y_range * 0.15) if elo_scores else 1050
+    y_max = max(ci_upper) + 30 if ci_upper else 1050
 
     fig.update_layout(
         title=f"ELO Ratings — Budget {budget}",
@@ -518,6 +550,7 @@ def compute_elo_for_bucket(
         paper_bgcolor="white",
         showlegend=False,
         margin={"t": 60, "b": 80},
+        shapes=shapes,
     )
 
     n_bs = result.metadata.get("n_bootstrap_samples", 0)
@@ -689,6 +722,11 @@ with gr.Blocks(title="shapiq Leaderboard") as demo:
         )
 
         # Pre-compute initial ELO display for Medium (1000) bucket
+
+        import time
+
+        _t0 = time.perf_counter()
+
         _elo_init_table, _elo_init_fig, _elo_init_info = _with_spinner(
             f"Computing ELO ratings for initial bucket ({BUDGET_BUCKETS[2]['label']})...",
             lambda: compute_elo_for_bucket(raw_records, int(BUDGET_BUCKETS[2]["budget"]), "all", _default_index)
@@ -901,6 +939,8 @@ with gr.Blocks(title="shapiq Leaderboard") as demo:
                     all_bucket_tables.append(
                         gr.Dataframe(value=_t, interactive=False, max_height=1000)
                     )
+
+        logging.info(f"[TIMING] ui.py initial ELO compute (1 bucket): {time.perf_counter() - _t0:.2f}s")
 
         print("\n✨ Ready!\n")
 
