@@ -1694,5 +1694,8 @@ def main() -> None:
     demo.launch()
 
 
+demo: gr.Blocks | None = None
+
+
 if __name__ == "__main__":
     main()
