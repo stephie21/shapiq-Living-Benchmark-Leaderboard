@@ -7,9 +7,12 @@
 # 1) Game (Target Dataset) selection
 # ---------------------------------------------------------------------
 # Supported examples (sorted by player count):
-# "CaliforniaHousing" (8), "Nursery" (8), "SOUM" (10), "BikeSharing" (12), "AdultCensus" (14),
-# "Zoo" (16), "Hepatitis" (19), "Thyroid" (21), "Mushroom" (22), "BreastCancer" (30),
-# "Ionosphere" (34), "Soybean" (35), "Annealing" (38), "Arrhythmia" (279)
+# "CaliforniaHousing" (8), "Nursery" (8), "SOUM" (10),
+# "BikeSharing" (12), "AdultCensus" (14),"Zoo" (16),
+# "Hepatitis" (19), "Thyroid" (21), "Mushroom" (22),
+# "BreastCancer" (30), "Ionosphere" (34), "Soybean" (35),
+# "Annealing" (38), "Splice" (60), "TaiwaneseBankruptcy" (94),
+# "Arrhythmia" (279)
 
 # REGRESSION_GAMES: "BikeSharing","CaliforniaHousing"
 
@@ -108,16 +111,7 @@ approximators:
 #  - "ProxySPEX"
 #  - "ProxySHAP"
 #
-# If index: "SII"
-#  - "PermutationSamplingSII"
-#  - "KernelSHAPIQ"
-#  - "InconsistentKernelSHAPIQ"
-#  - "SVARMIQ"
-#  - "SHAPIQ"
-#  - "ProxySPEX"
-#  - "ProxySHAP"
-#
-# If index: "k-SII"
+# If index: "SII" or "k-SII"
 #  - "PermutationSamplingSII"
 #  - "KernelSHAPIQ"
 #  - "InconsistentKernelSHAPIQ"

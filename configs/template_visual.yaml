@@ -25,13 +25,13 @@ max_order: 1
 # 3) Image-specific parameters
 # ---------------------------------------------------------------------
 # n_players:
-# - For ViT models: Set to the number of patches (e.g., 9, 16)
-# - For ResNet models: Set to the number of superpixels (e.g., 14)
+# - For ViT models “vit_9_patches ”: Set to the number of patches to 9
+# - For ResNet models: Set to the number of superpixels (maximal 14)
 n_players: 9
 
 game_params:
   # Supported model_names:
-  #   - ViT: "vit_16_patches", "vit_9_patches"
+  #   - ViT: "vit_9_patches"
   #   - ResNet: "resnet_18"
   model_name: "resnet_18"
 
@@ -56,24 +56,28 @@ ground_truth:
 # ---------------------------------------------------------------------
 # 5) Approximator Algorithms
 # ---------------------------------------------------------------------
-# Note: Ensure these are compatible with your index (e.g., SII/k-SII)
+# Note: Ensure these are compatible with your index (e.g., SII/k-SII see template_tabular.yaml)
 approximators:
-  - "PermutationSamplingSII"
-  - "KernelSHAPIQ"
-  - "InconsistentKernelSHAPIQ"
-  - "SVARMIQ"
-  - "SHAPIQ"
-  - "ProxySPEX"
-  - "ProxySHAP"
+#  - "OwenSamplingSV"
+#  - "StratifiedSamplingSV"
+#  - "SVARM"
+#  - "UnbiasedKernelSHAP"
+#  - "PermutationSamplingSV"
+#  - "KernelSHAP"
+#  - "kADDSHAP"
+#  - "ProxySPEX"
+#  - "ProxySHAP"
 
 # ---------------------------------------------------------------------
 # 6) Budgets
 # ---------------------------------------------------------------------
 # For images, computational cost per sample is high. Start with lower budgets.
 budgets:
-  - 100
-  - 200
-  - 400
+  - 250
+  - 500
+  - 1000
+  - 5000
+  - 10000
 
 # ---------------------------------------------------------------------
 # 7) Random seeds
