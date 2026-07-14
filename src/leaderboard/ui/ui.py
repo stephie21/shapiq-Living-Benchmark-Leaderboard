@@ -5,8 +5,6 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
-from concurrent.futures import ProcessPoolExecutor
-from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, TypeVar, cast
 
@@ -315,12 +313,12 @@ def load_initial_data() -> InitialData:
     _all_games = db_client.get_games()
     _all_approxs = db_client.get_approximators()
     _unique_configs = db_client.get_unique_configs()
-    _all_budgets = sorted({c.budget for c in _unique_configs})
-    _all_indices = sorted({c.index for c in _unique_configs})
+    _all_budgets = sorted(set({c.budget for c in _unique_configs}))
+    _all_indices = sorted(set({c.index for c in _unique_configs}))
     _default_index = "SV" if "SV" in _all_indices else (_all_indices[0] if _all_indices else "all")
-    _all_n_players = sorted({c.n_players for c in _unique_configs})
-    _all_max_orders = sorted({c.max_order for c in _unique_configs})
-    _all_gt_methods = sorted({c.ground_truth_method for c in _unique_configs})
+    _all_n_players = sorted(set({c.n_players for c in _unique_configs}))
+    _all_max_orders = sorted(set({c.max_order for c in _unique_configs}))
+    _all_gt_methods = sorted(set({c.ground_truth_method for c in _unique_configs}))
     _all_seeds = sorted(
         set(
             {
