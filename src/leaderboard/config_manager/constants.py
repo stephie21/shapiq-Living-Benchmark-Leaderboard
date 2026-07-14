@@ -98,6 +98,23 @@ GAME_PLAYER_COUNTS = {
 # --- Supported Imputers Whitelist ---
 SUPPORTED_IMPUTERS = ["marginal", "conditional"]
 
+# --- Supported loss function Whitelist ---
+SUPPORTED_LOSS_FUNCTIONS = [
+    "accuracy_score",
+    "cross_entropy",
+    "mean_absolute_error",
+    "mean_squared_error",
+]
+
+# --- Supported ML models Whitelist ---
+SUPPORTED_MODELS = ["decision_tree", "random_forest", "gradient_boosting"]
+
+# --- Supported GT strategy Whitelist ---
+SUPPORTED_GT_STRATEGY = ["compute"]
+
+# --- Supported GT methods Whitelist ---
+SUPPORTED_GT_METHODS = ["ExactComputer", "TreeExplainer"]
+
 # --- Supported Approximators Whitelist ---
 ALL_SUPPORTED_APPROXIMATORS = [
     "OwenSamplingSV",
