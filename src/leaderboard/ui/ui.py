@@ -837,7 +837,7 @@ def build_app() -> gr.Blocks:
                 )
                 elo_next_btn = gr.Button("Higher Budget ▶", scale=0, variant="secondary")
 
-            with gr.Row():
+            with gr.Row(equal_height=True):
                 elo_approx_filter = gr.CheckboxGroup(
                     choices=df_agg["approximator_name"].unique().tolist(),
                     value=df_agg["approximator_name"].unique().tolist(),
@@ -1259,7 +1259,7 @@ def build_app() -> gr.Blocks:
                         value=df_agg["game_name"].iloc[0],
                         label="Game",
                     )
-                    with gr.Row():
+                    with gr.Row(equal_height=True):
                         approx_checkboxes[metric] = gr.CheckboxGroup(
                             choices=df_agg["approximator_name"].unique().tolist(),
                             value=df_agg["approximator_name"].unique().tolist(),
