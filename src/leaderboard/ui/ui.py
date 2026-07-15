@@ -449,41 +449,39 @@ def compute_elo_for_bucket(
             marker={"color": bar_colors},
             text=[f"{s:.1f}" for s in elo_scores],
             textposition="outside",
-            hovertemplate="<b>%{x}</b><br>ELO: %{y:.1f}<br>95% CI: [%{customdata[0]:.1f}, %{customdata[1]:.1f}]<extra></extra>",
+            hovertemplate="<b>%{x}</b><br>ELO: %{y:.1f}<extra></extra>" if game != "all" else "<b>%{x}</b><br>ELO: %{y:.1f}<br>95% CI: [%{customdata[0]:.1f}, %{customdata[1]:.1f}]<extra></extra>",
             customdata=list(zip(ci_lower, ci_upper)),
         )
     )
 
-    fig.add_trace(go.Scatter(
-        x=approx_names,
-        y=ci_lower,
-        mode="markers",
-        marker=dict(
-            symbol="line-ew",
-            size=30,
-            color="black",
-            line=dict(color="rgba(100,100,100,0.4)", width=1),
-        ),
-        hoverinfo="skip",
-        showlegend=False,
-    ))
-
-    shapes = [
-        dict(
-            type="rect",
-            x0=i - 0.4,
-            x1=i + 0.4,
-            y0=low,
-            y1=high,
-            fillcolor=color,
-            opacity=0.25,
-            line=dict(width=0),
-        )
-        for i, (low, high, color) in enumerate(zip(ci_lower, ci_upper, bar_colors))
-    ]
+    shapes = [] if game != "all" else (
+        [
+            # CI-Band
+            dict(
+                type="rect",
+                x0=i - 0.4,
+                x1=i + 0.4,
+                y0=low,
+                y1=high,
+                fillcolor=color,
+                opacity=0.25,
+                line=dict(width=0),
+            )
+            for i, (low, high, color) in enumerate(zip(ci_lower, ci_upper, bar_colors))
+        ] + [
+            # ci_lower line
+            dict(
+                type="line",
+                x0=i - 0.4, x1=i + 0.4,
+                y0=low, y1=low,
+                line=dict(color="rgba(80,80,80,0.6)", width=2),
+            )
+            for i, low in enumerate(ci_lower)
+        ]
+    )
 
     y_min = min(elo_scores) - 20 if elo_scores else 950
-    y_max = max(ci_upper) + 30 if ci_upper else 1050
+    y_max = max(ci_upper) + 60 if ci_upper else 1050
 
     fig.update_layout(
         title=f"ELO Ratings — Budget {budget}",
