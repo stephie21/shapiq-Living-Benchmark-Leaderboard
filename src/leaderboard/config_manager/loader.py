@@ -6,9 +6,11 @@ This module handles loading and validating configuration files.
 from __future__ import annotations
 
 import logging
+import sys
 from pathlib import Path
 
 import yaml
+from pydantic import ValidationError
 
 from .models import MVPRunConfig
 
@@ -36,6 +38,15 @@ def load_and_validate_config(yaml_path: str | Path) -> MVPRunConfig | None:
         with Path(yaml_path).open("r", encoding="utf-8") as file:
             data = yaml.safe_load(file)
         config = MVPRunConfig(**data)
+    except ValidationError as e:
+        # Pydantic validates the models. We extract our custom UI error messages
+        custom_errors = [err.get("msg") for err in e.errors() if "💥" in err.get("msg", "")]
+
+        if custom_errors:
+            print("\n".join(custom_errors), file=sys.stderr)
+        else:
+            print(f"\n💥 Configuration structure error:\n{e}", file=sys.stderr)
+        sys.exit(1)
     except (OSError, yaml.YAMLError, TypeError, ValueError):
         logger.exception("Configuration Validation Error")
         raise

@@ -59,7 +59,6 @@ VISUAL_GAMES = {"ImageClassifier"}
 
 # Supported model backends for visual games.
 SUPPORTED_VISUAL_MODELS = [
-    "vit_16_patches",
     "vit_9_patches",
     "resnet_18",
 ]

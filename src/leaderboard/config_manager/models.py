@@ -7,17 +7,17 @@ from __future__ import annotations
 
 from typing import Any, Literal
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 import shapiq
 
 from .config_exceptions import (
-    InvalidBudgetStepsError,
-    InvalidBudgetStrategyError,
     InvalidGameFamilyError,
     InvalidOrderForIndexError,
+    InvalidParameterError,
     UnsupportedGameError,
     UnsupportedImputerError,
+    format_config_error,
 )
 from .constants import (
     ALL_SUPPORTED_APPROXIMATORS,
@@ -26,7 +26,11 @@ from .constants import (
     LOCAL_GAMES,
     REGRESSION_GAMES,
     SUPPORTED_GAMES,
+    SUPPORTED_GT_METHODS,
+    SUPPORTED_GT_STRATEGY,
     SUPPORTED_IMPUTERS,
+    SUPPORTED_LOSS_FUNCTIONS,
+    SUPPORTED_MODELS,
     SUPPORTED_VISUAL_MODELS,
     VALID_INDICES,
     VISUAL_GAMES,
@@ -35,11 +39,27 @@ from .constants import (
 
 # --- Ground Truth Configuration Model ---
 class GroundTruthConfig(BaseModel):
-    """Configuration for ground truth computation or lookup."""
+    """Configuration for ground truth computation."""
 
-    strategy: str = Field(default="compute")  # "compute" or "lookup"
+    strategy: str = Field(default="compute")  # currently only "compute" allowed.
     method: str = Field(default="ExactComputer")
     storage_path: str | None = Field(default=None)
+
+    @model_validator(mode="after")
+    def validate_gt_params(self) -> GroundTruthConfig:
+        # validate GT strategy
+        if self.strategy not in SUPPORTED_GT_STRATEGY:
+            raise InvalidParameterError(
+                "ground_truth.strategy", self.strategy, SUPPORTED_GT_STRATEGY
+            ) from None
+
+        # validate GT method
+        if self.method not in SUPPORTED_GT_METHODS:
+            raise InvalidParameterError(
+                "ground_truth.method", self.method, SUPPORTED_GT_METHODS
+            ) from None
+
+        return self
 
 
 # --- Main Configuration Model (MVP) ---
@@ -188,7 +208,7 @@ class MVPRunConfig(BaseModel):
         if self.game in VISUAL_GAMES:
             model_name = cleaned_params.get("model_name")
 
-            # 💡 NEW: Logic to purge n_superpixel_resnet if not resnet_18
+            # Logic to purge n_superpixel_resnet if not resnet_18
             if model_name != "resnet_18":
                 cleaned_params.pop("n_superpixel_resnet", None)
 
@@ -249,9 +269,6 @@ class MVPRunConfig(BaseModel):
             for key in global_forbidden:
                 cleaned_params.pop(key, None)
 
-            self.game_params = cleaned_params
-            return self
-
         # 3. For local explanation games (local_xai), perform standard parameter validation and precise cleaning
         if self.game_family == "local_xai":
             local_forbidden = ["loss_function", "n_samples_eval", "n_samples_empty"]
@@ -265,6 +282,38 @@ class MVPRunConfig(BaseModel):
         imputer = cleaned_params.get("imputer")
         if imputer is not None and imputer not in SUPPORTED_IMPUTERS:
             raise UnsupportedImputerError(imputer, SUPPORTED_IMPUTERS) from None
+
+        model_name = cleaned_params.get("model_name")
+        if model_name is not None and model_name not in SUPPORTED_MODELS:
+            raise InvalidParameterError("model_name", model_name, SUPPORTED_MODELS) from None
+
+        loss_function = cleaned_params.get("loss_function")
+        if loss_function is not None:
+            # 1. white list validation
+            if loss_function not in SUPPORTED_LOSS_FUNCTIONS:
+                raise InvalidParameterError(
+                    "loss_function", loss_function, SUPPORTED_LOSS_FUNCTIONS
+                ) from None
+
+            # 2. validate game type: Regression vs Classification
+            regression_losses = ["mean_absolute_error", "mean_squared_error"]
+            classification_losses = ["accuracy_score", "cross_entropy"]
+
+            # In case of regression game with classification loss function
+            if self.game in REGRESSION_GAMES and loss_function not in regression_losses:
+                body = (
+                    f"Your game '{self.game}' is a Regression task, but you provided a classification loss: '{loss_function}'!\n\n"
+                    f"Allowed loss functions for Regression games are:\n  {regression_losses}"
+                )
+                raise ValueError(format_config_error("TASK MISMATCH AT 'loss_function'", body))
+
+            # In case of classification game with regression loss function
+            if self.game not in REGRESSION_GAMES and loss_function not in classification_losses:
+                body = (
+                    f"Your game '{self.game}' is a Classification task, but you provided a regression loss: '{loss_function}'!\n\n"
+                    f"Allowed loss functions for Classification games are:\n  {classification_losses}"
+                )
+                raise ValueError(format_config_error("TASK MISMATCH AT 'loss_function'", body))
 
         # Sync back the cleaned state to the model object permanently
         self.game_params = cleaned_params
@@ -305,29 +354,6 @@ class MVPRunConfig(BaseModel):
                 f"but your config specifies n_players={self.n_players}. Please align them."
             )
             raise ValueError(msg)
-
-        return self
-
-    @model_validator(mode="after")
-    def validate_budget_policy(self) -> MVPRunConfig:
-        """Validate optional budget policy metadata when provided."""
-        if not self.budget_policy:
-            return self
-
-        strategy = self.budget_policy.get("strategy")
-        if strategy is not None and strategy != "range":
-            raise InvalidBudgetStrategyError(strategy) from None
-
-        steps = self.budget_policy.get("steps")
-        if steps is not None:
-            # Be permissive about YAML types (e.g. "10"), but require an integer > 0.
-            try:
-                steps_value = int(steps)
-            except (ValueError, TypeError):
-                raise InvalidBudgetStepsError(steps_input=steps, is_negative=False) from None
-
-            if steps_value <= 0:
-                raise InvalidBudgetStepsError(steps_input=steps_value, is_negative=True) from None
 
         return self
 
