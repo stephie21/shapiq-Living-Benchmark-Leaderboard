@@ -1638,6 +1638,7 @@ def build_app() -> gr.Blocks:
                 [str(BUDGET_BUCKETS[budget_idx]["budget"])],
                 [index] if index != "all" else [],
                 [metric] if metric != "all" else [],
+                [], [], [], [],  # n_players, max_order, seed, gt_method
             ),
             inputs=[
                 elo_approx_filter,
@@ -1646,7 +1647,7 @@ def build_app() -> gr.Blocks:
                 elo_index_filter,
                 elo_game_filter,
             ],
-            outputs=[det_game, det_approx, det_budget, det_index, det_metric],
+            outputs=_det_filters,
         ).then(
             fn=query_raw,
             inputs=_det_filters,
@@ -1659,9 +1660,14 @@ def build_app() -> gr.Blocks:
 
         for metric in available_metrics:
             jump_buttons[metric].click(
-                fn=lambda game, approxs: ([game] if game else [], approxs or [], []),
+                fn=lambda game, approxs: (
+                    [game] if game else [],
+                    approxs or [],
+                    [], [], [],  # budget, index, metric
+                    [], [], [], [],  # n_players, max_order, seed, gt_method
+                ),
                 inputs=[game_dropdowns[metric], approx_checkboxes[metric]],
-                outputs=[det_game, det_approx, det_metric],
+                outputs=_det_filters,
             ).then(
                 fn=query_raw,
                 inputs=_det_filters,
@@ -1676,10 +1682,11 @@ def build_app() -> gr.Blocks:
             fn=lambda n, *vals: (
                 list(set(vals[MAX_COLS : MAX_COLS + n])),
                 list(set(vals[:n])),
-                [],
+                [], [], [],  # budget, index, metric
+                [], [], [], [],  # n_players, max_order, seed, gt_method
             ),
             inputs=[n_cols_state, *compare_approx_dropdowns, *compare_game_dropdowns],
-            outputs=[det_game, det_approx, det_metric],
+            outputs=_det_filters,
         ).then(
             fn=query_raw,
             inputs=_det_filters,
