@@ -10,6 +10,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import threading
 from concurrent.futures import ProcessPoolExecutor
 from dataclasses import dataclass
 from pathlib import Path
@@ -26,7 +27,7 @@ import plotly.graph_objects as go
 from dotenv import load_dotenv
 
 from leaderboard.metrics import METRICS
-from leaderboard.scoring.cd_scorer import CriticalDifferenceScorer, CriticalDifferenceResult
+from leaderboard.scoring.cd_scorer import CriticalDifferenceResult, CriticalDifferenceScorer
 from leaderboard.scoring.elo_scorer import EloScorer
 from leaderboard.storage.connection import DatabaseClientFactory, DBConnectionError
 from leaderboard.storage.connection.utilities import process_raw_runs
@@ -277,7 +278,7 @@ def get_plot_single(
 
 
 # --- Daten laden ---
-def _with_spinner(message: str, fn: Callable[[], T]) -> T:
+def _with_spinner(message: str, fn: Callable[[], T]) -> T:  # noqa: UP047
     """Run *fn* while showing an animated terminal spinner.
 
     Args:
@@ -287,8 +288,6 @@ def _with_spinner(message: str, fn: Callable[[], T]) -> T:
     Returns:
         Whatever *fn* returns.
     """
-    import threading
-
     SPINNER = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"]
     done = threading.Event()
 
@@ -462,8 +461,8 @@ def compute_elo_for_bucket(
 
     bar_colors = [style_map.get(name, {"color": "#636EFA"})["color"] for name in approx_names]
 
-    ci_lower = [cast(float, r.metadata.get("ci_lower", r.score)) for r in sorted_rows]
-    ci_upper = [cast(float, r.metadata.get("ci_upper", r.score)) for r in sorted_rows]
+    ci_lower = [cast("float", r.metadata.get("ci_lower", r.score)) for r in sorted_rows]
+    ci_upper = [cast("float", r.metadata.get("ci_upper", r.score)) for r in sorted_rows]
 
     fig = go.Figure(
         go.Bar(
@@ -473,32 +472,32 @@ def compute_elo_for_bucket(
             text=[f"{s:.1f}" for s in elo_scores],
             textposition="outside",
             hovertemplate="<b>%{x}</b><br>ELO: %{y:.1f}<extra></extra>" if game != "all" else "<b>%{x}</b><br>ELO: %{y:.1f}<br>95% CI: [%{customdata[0]:.1f}, %{customdata[1]:.1f}]<extra></extra>",
-            customdata=list(zip(ci_lower, ci_upper)),
+            customdata=list(zip(ci_lower, ci_upper, strict=False)),
         )
     )
 
     shapes = [] if game != "all" else (
         [
             # CI-Band
-            dict(
-                type="rect",
-                x0=i - 0.4,
-                x1=i + 0.4,
-                y0=low,
-                y1=high,
-                fillcolor=color,
-                opacity=0.25,
-                line=dict(width=0),
-            )
-            for i, (low, high, color) in enumerate(zip(ci_lower, ci_upper, bar_colors))
+            {
+                "type": "rect",
+                "x0": i - 0.4,
+                "x1": i + 0.4,
+                "y0": low,
+                "y1": high,
+                "fillcolor": color,
+                "opacity": 0.25,
+                "line": {"width": 0},
+            }
+            for i, (low, high, color) in enumerate(zip(ci_lower, ci_upper, bar_colors, strict=False))
         ] + [
             # ci_lower line
-            dict(
-                type="line",
-                x0=i - 0.4, x1=i + 0.4,
-                y0=low, y1=low,
-                line=dict(color="rgba(80,80,80,0.6)", width=2),
-            )
+            {
+                "type": "line",
+                "x0": i - 0.4, "x1": i + 0.4,
+                "y0": low, "y1": low,
+                "line": {"color": "rgba(80,80,80,0.6)", "width": 2},
+            }
             for i, low in enumerate(ci_lower)
         ]
     )
@@ -525,7 +524,7 @@ def compute_elo_for_bucket(
     metric_label = metric or "all"
     index_label = index or "all"
     game_label = game or "all"
-    n_groups = cast(int, result.metadata.get("n_groups", 0))
+    n_groups = cast("int", result.metadata.get("n_groups", 0))
 
     info_md = (
         f"Metric: **{metric_label}** | Index: **{index_label}** | Game: **{game if game != 'all' else 'all'}** | "
@@ -715,7 +714,6 @@ def build_app() -> gr.Blocks:
     Returns:
         Gradio ``Blocks`` object ready to be launched with ``demo.launch()``.
     """
-
     data = load_initial_data()
 
     df_agg = data.df_agg
@@ -1005,6 +1003,7 @@ def build_app() -> gr.Blocks:
                     delta: Direction to move (``-1`` for lower, ``+1`` for higher budget).
                     raw_records: All raw benchmark records from the database.
                     selected_approxs: Approximator names to include.
+                    elo_cache: Cached results mapping bucket index to precomputed UI content.
                     metric: Metric to score by; ``"all"`` includes every metric.
                     index: Interaction index to filter by (e.g. "SV"). Use "all" to include all indices.
                     game: Game name to filter by. Use "all" to include all games.
@@ -1067,6 +1066,7 @@ def build_app() -> gr.Blocks:
                     idx: Current bucket index.
                     raw_records: All raw benchmark records from the database.
                     selected_approxs: Approximator names to include.
+                    elo_cache: Cached results mapping bucket index to precomputed UI content.
                     metric: Metric to score by; ``"all"`` includes every metric.
                     index: Interaction index to filter by (e.g. "SV"). Use "all" to include all indices.
                     game: Game name to filter by. Use "all" to include all games.
@@ -1092,6 +1092,7 @@ def build_app() -> gr.Blocks:
                     idx: Current bucket index.
                     raw_records: All raw benchmark records from the database.
                     selected_approxs: Approximator names to include.
+                    elo_cache: Cached results mapping bucket index to precomputed UI content.
                     metric: Metric to score by; ``"all"`` includes every metric.
                     index: Interaction index to filter by (e.g. "SV"). Use "all" to include all indices.
                     game: Game name to filter by. Use "all" to include all games.
@@ -1712,7 +1713,7 @@ def build_app() -> gr.Blocks:
             inputs=_det_filters,
             outputs=[det_count, det_table],
         ).then(
-            fn=lambda: gr.Info("Data loaded - please switch to \"Detailed Data\" Tab"),
+            fn=lambda: gr.Info('Data loaded - please switch to "Detailed Data" Tab'),
             inputs=[],
             outputs=[],
         )
@@ -1732,7 +1733,7 @@ def build_app() -> gr.Blocks:
                 inputs=_det_filters,
                 outputs=[det_count, det_table],
             ).then(
-                fn=lambda: gr.Info("Data loaded - please switch to \"Detailed Data\" Tab"),
+                fn=lambda: gr.Info('Data loaded - please switch to "Detailed Data" Tab'),
                 inputs=[],
                 outputs=[],
             )
@@ -1751,7 +1752,7 @@ def build_app() -> gr.Blocks:
             inputs=_det_filters,
             outputs=[det_count, det_table],
         ).then(
-            fn=lambda: gr.Info("Data loaded - please switch to \"Detailed Data\" Tab"),
+            fn=lambda: gr.Info('Data loaded - please switch to "Detailed Data" Tab'),
             inputs=[],
             outputs=[],
         )
