@@ -1,4 +1,9 @@
-"""UI components for the leaderboard."""
+"""Gradio-based UI for the shapiq approximator leaderboard.
+
+Provides data loading helpers, Plotly figure builders, ELO/CD scoring
+wrappers, and the :func:`build_app` entry point that assembles the full
+multi-tab Gradio interface.
+"""
 
 from __future__ import annotations
 
@@ -8,9 +13,8 @@ import logging
 from concurrent.futures import ProcessPoolExecutor
 from dataclasses import dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, TypeVar, cast
-
 from time import perf_counter
+from typing import TYPE_CHECKING, Any, TypeVar, cast
 
 if TYPE_CHECKING:
     from collections.abc import AsyncGenerator, Callable, Iterator
@@ -199,7 +203,7 @@ def get_plot(
         sorted_group = group.sort_values("budget")
         approx_str = str(approx_name)
 
-        # Linie
+        # Line trace
         fig.add_trace(
             go.Scatter(
                 x=sorted_group["budget"],
@@ -211,7 +215,7 @@ def get_plot(
             )
         )
 
-        # Fehlerband
+        # Error band
         r, g, b = int(color[1:3], 16), int(color[3:5], 16), int(color[5:7], 16)
         fig.add_trace(
             go.Scatter(
@@ -274,7 +278,15 @@ def get_plot_single(
 
 # --- Daten laden ---
 def _with_spinner(message: str, fn: Callable[[], T]) -> T:
-    """Run a function while printing a small terminal spinner."""
+    """Run *fn* while showing an animated terminal spinner.
+
+    Args:
+        message: Text displayed next to the spinner.
+        fn: Zero-argument callable whose return value is forwarded.
+
+    Returns:
+        Whatever *fn* returns.
+    """
     import threading
 
     SPINNER = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"]
@@ -297,7 +309,18 @@ def _with_spinner(message: str, fn: Callable[[], T]) -> T:
 
 
 def load_initial_data() -> InitialData:
-    """Load and prepare all data required for the initial UI build."""
+    """Load and prepare all data required for the initial UI build.
+
+    Connects to the configured database backend, fetches all raw records,
+    aggregates them, and derives all filter options needed to populate the
+    Gradio UI dropdowns.
+
+    Returns:
+        Fully populated :class:`InitialData` instance.
+
+    Raises:
+        DBConnectionError: If the database connection test fails.
+    """
     db_client = DatabaseClientFactory.create_client(
         LOADING_METHOD,
         db_args={"LOCAL_DB_PATH": str(RESULTS_PATH)} if LOADING_METHOD == "local" else {},
@@ -519,7 +542,18 @@ def compute_elo_for_bucket(
 def compute_elo_for_bucket_worker(
     args: tuple[list[dict], int, str, str, str, dict[str, dict[str, str]]],
 ) -> tuple[int, pd.DataFrame, go.Figure, str]:
-    """Compute one ELO bucket in a separate process."""
+    """Unpack *args* and delegate to :func:`compute_elo_for_bucket`.
+
+    Designed to be called from a :class:`~concurrent.futures.ProcessPoolExecutor`.
+
+    Args:
+        args: Tuple of ``(bucket_records, budget, metric, index, game, approx_styles)``
+            as produced by :func:`compute_all_elo_buckets_parallel`.
+
+    Returns:
+        ``(budget, table_df, fig, info_md)`` — budget is passed through so
+        results can be matched to their bucket after parallel execution.
+    """
     bucket_records, budget, metric, index, game, approx_styles = args
     table_df, fig, info_md = compute_elo_for_bucket(
         bucket_records,
@@ -541,9 +575,16 @@ def compute_all_elo_buckets_parallel(
 ) -> tuple[Any, ...]:
     """Compute all ELO budget buckets in parallel.
 
+    Args:
+        raw_records: Raw benchmark records as a list of dicts.
+        selected_approxs: Approximator names to include.
+        metric: Metric to score by; ``"all"`` includes every metric.
+        index: Interaction index to filter by; ``"all"`` includes all.
+        game: Game name to filter by; ``"all"`` includes all games.
+
     Returns:
-        Flat tuple in the order:
-        info_md, table_0, fig_0, table_1, fig_1, ...
+        Flat tuple ``(info_md, table_0, fig_0, table_1, fig_1, …)`` — one
+        ``(table, fig)`` pair per entry in :data:`BUDGET_BUCKETS`.
     """
     filtered = [
         record for record in raw_records if record.get("approximator_name") in selected_approxs
@@ -665,8 +706,15 @@ def _records_to_df(records: list[dict], metric_filter: list[str] | None = None) 
 
 
 def build_app() -> gr.Blocks:
-    """Build and return the Gradio leaderboard app."""
-    # --- Gradio App ---
+    """Build and return the Gradio leaderboard application.
+
+    Loads initial data, assembles all tabs (ELO Leaderboard, Metrics across
+    Budgets, Compare Approximators, Detailed Data), wires up all event
+    handlers, and returns the configured :class:`~gradio.Blocks` instance.
+
+    Returns:
+        Gradio ``Blocks`` object ready to be launched with ``demo.launch()``.
+    """
 
     data = load_initial_data()
 
@@ -728,16 +776,16 @@ def build_app() -> gr.Blocks:
             Tuple of Plotly Figures — one per (metric x column) combination,
             in row-major order (all columns for metric 0, then metric 1, …).
         """
-        # args enthält: [0..4] Approximatoren, [5..9] Games, [10] Anzahl aktiver Spalten (n_cols)
+        # args layout: [0..4] approximators, [5..9] games, [10] active column count (n_cols)
         approx_vals = list(args[:MAX_COLS])
         game_vals = list(args[MAX_COLS : 2 * MAX_COLS])
         n_cols = args[-1]
 
-        # Approximatoren und Spiele herausfiltern, die gerade aktiv sichtbar sind
+        # Slice to currently visible columns
         active_approxs = approx_vals[:n_cols]
         active_games = game_vals[:n_cols]
 
-        # Y-Achsen-Limits über alle aktiven Kombinationen hinweg
+        # Compute shared y-axis limits across all active combinations
         yranges = {}
         for m in available_metrics:
             col = f"{m}_mean"
@@ -758,7 +806,7 @@ def build_app() -> gr.Blocks:
                     if pd.isna(y_min) or pd.isna(y_max):
                         yranges[m] = None
                     else:
-                        # Puffer für die Log-Skala berechnen
+                        # Add log-scale padding
                         yranges[m] = [float(np.log10(y_min) - 0.5), float(np.log10(y_max) + 0.5)]
                 else:
                     yranges[m] = None
@@ -767,7 +815,6 @@ def build_app() -> gr.Blocks:
 
         outputs = []
         for m in available_metrics:
-            # KORREKTUR: Wir nutzen extend mit einer List-Comprehension für die Spalten
             outputs.extend(
                 [
                     get_plot_single(df_agg, game_vals[i], m, approx_vals[i], yranges.get(m))
@@ -783,7 +830,7 @@ def build_app() -> gr.Blocks:
         Comparison of Shapley value approximators across games, budgets, and seeds.
         """)
 
-        # Store df in gradio state to allow reloading
+        # Store aggregated DataFrame in Gradio state to support live reloads
         df_state = gr.State(value=df_agg)
 
         raw_state = gr.State(value=raw_records)
@@ -826,7 +873,7 @@ def build_app() -> gr.Blocks:
                 multiselect=False,
             )
 
-            # State: current bucket index (0-4), start with Medium (1000) = index 2
+            # Current bucket index (0-4); initialiZed to Medium (1000) = index 2
             elo_bucket_idx_state = gr.State(value=2)
 
             with gr.Row(equal_height=True):
@@ -853,7 +900,7 @@ def build_app() -> gr.Blocks:
                 fn=lambda: df_agg["approximator_name"].unique().tolist(), outputs=elo_approx_filter
             )
 
-            # Pre-compute initial ELO display for Medium (1000) bucket
+            # Pre-compute initial ELO display for all budget buckets
             _initial_all_bucket_outputs = _with_spinner(
                 "Computing initial ELO ratings for all budget buckets...",
                 lambda: compute_all_elo_buckets_parallel(
@@ -876,7 +923,7 @@ def build_app() -> gr.Blocks:
                 },
             )
 
-            # Initialen Cache aus vorberechneten Werten befüllen
+            # Populate initial cache from precomputed results
             _cd_fig_placeholder: go.Figure | None = None
             _elo_init_cache = {
                 i: (
@@ -1132,16 +1179,19 @@ def build_app() -> gr.Blocks:
                 """Recompute ELO results for all budget buckets simultaneously.
 
                 Args:
+                    idx: Currently selected bucket index; used to refresh the
+                        single-bucket view after the parallel run completes.
                     raw_records: All raw benchmark records from the database.
                     selected_approxs: Approximator names to include.
                     metric: Metric to score by; ``"all"`` includes every metric.
-                    index: Interaction index to filter by (e.g. "SV"). Use "all" to include all indices.
-                    game: Game name to filter by. Use "all" to include all games.
+                    index: Interaction index to filter by; ``"all"`` includes all.
+                    game: Game name to filter by; ``"all"`` includes all games.
 
-                Returns:
-                    Iterator of two Gradio update tuples.
+                Yields:
+                    Two Gradio update tuples: first hides all tables; second carries
+                    the fully recomputed tables, figures, cache, and single-bucket view.
                 """
-                # Erst alle Tabellen verstecken
+                # Hide all tables first to force a size reset
                 hide_outputs = [gr.update()]
                 for _ in BUDGET_BUCKETS:
                     hide_outputs.extend([gr.update(visible=False), gr.update()])
@@ -1316,7 +1366,7 @@ def build_app() -> gr.Blocks:
                     elem_classes=["compare-jump-btn"],
                 )
 
-            # Pro Spalte: Approximator-Dropdown + Game-Dropdown
+            # Per column: approximator dropdown + game dropdown
             compare_column_containers = []
             compare_approx_dropdowns = []
             compare_game_dropdowns = []
@@ -1343,7 +1393,7 @@ def build_app() -> gr.Blocks:
                             )
                         )
 
-            # Plots pro Metrik pro Spalte
+            # plots per metric per column
             compare_plot_rows = {}  # compare_plot_rows[metric] = [plot0, plot1, ...]
             _yranges = compute_yranges(
                 games[0], [approxs[0], approxs[1 % len(approxs)], approxs[2 % len(approxs)]]
@@ -1363,32 +1413,41 @@ def build_app() -> gr.Blocks:
                     ]
                     compare_plot_rows[m] = plots
 
-            # Spalte hinzufuegen/entfernen
+            # Add / remove columns
             all_col_components = [
                 *compare_column_containers,
                 *[p for m in available_metrics for p in compare_plot_rows[m]],
             ]
 
             def update_col_visibility(n: int, delta: int, *dropdown_values: Any) -> list[Any]:
-                """Updates the visibility and plots of side-by-side comparison columns.
+                """Update column visibility and recompute comparison plots.
 
-                Calculates the new column count, dynamically adjusts the visibility
-                of components, and recalculates the shared y-axis ranges.
+                Args:
+                    n: Current number of visible columns.
+                    delta: ``+1`` to add a column, ``-1`` to remove one.
+                    *dropdown_values: Flat sequence of approximator values (indices 0 to
+                        ``MAX_COLS-1``) followed by game values (indices ``MAX_COLS`` to
+                        ``2*MAX_COLS-1``), as passed by the Gradio click handler.
+
+                Returns:
+                    List consumed by the ``add_col_btn`` / ``remove_col_btn`` outputs:
+                    new column count, visibility updates for all column containers and
+                    plots, and interactivity updates for the two buttons.
                 """
                 new_n = max(2, min(MAX_COLS, n + delta))
                 updates = []
 
-                # Spalten-Container (Inklusive der darin liegenden Dropdowns) updaten
+                # Update column containers (including nested dropdowns)
                 updates = [
                     gr.update(elem_classes=[] if c_idx < new_n else ["hidden-col"])
                     for c_idx in range(MAX_COLS)
                 ]
 
-                # Gemeinsame Y-Range über alle aktiven Spalten berechnen
+                # Compute shared y-axis range across all active columns
                 active_approxs = [dropdown_values[i] for i in range(new_n)]
                 active_games = [dropdown_values[MAX_COLS + i] for i in range(new_n)]
 
-                # Plots berechnen UND sichtbar schalten
+                # Recompute plots and update visibility
                 for m in available_metrics:
                     yr_shared = compute_yranges(active_games[0], active_approxs).get(m)
 
@@ -1425,7 +1484,7 @@ def build_app() -> gr.Blocks:
                 outputs=[n_cols_state, *all_col_components, add_col_btn, remove_col_btn],
             )
 
-            # Plot Update bei Aenderung
+            # Trigger plot updates on dropdown change
             all_inputs = compare_approx_dropdowns + compare_game_dropdowns
             plot_outputs = [p for m in available_metrics for p in compare_plot_rows[m]]
 
@@ -1538,13 +1597,13 @@ def build_app() -> gr.Blocks:
                     filtered.append(r)
 
                 if not filtered:
-                    yield "**0 Runs gefunden.**", gr.update(value=pd.DataFrame(), visible=True)
+                    yield "**0 runs found.**", gr.update(value=pd.DataFrame(), visible=True)
                     return
 
                 result_df = _records_to_df(filtered, metrics or None)
 
                 yield (
-                    f"**{len(result_df)} Runs gefunden.**",
+                    f"**{len(result_df)} runs found.**",
                     gr.update(value=result_df, visible=True),
                 )
                 await asyncio.sleep(0.05)
@@ -1707,7 +1766,7 @@ def main() -> None:
     demo = build_app()
     print("\n✨ Ready!\n")  # noqa: T201
     elapsed = perf_counter() - start
-    print(round(elapsed, 4))
+    print(f"Startup time: {elapsed:.4f}s")  # noqa: T201
     demo.launch()
 
 
