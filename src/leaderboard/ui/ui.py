@@ -74,7 +74,7 @@ BUDGET_BUCKETS = [
 # Temporary seed determination
 SEED_IDs = ["approx_seed", "seed"]  # List of possible seed identifier columns in the raw data
 
-# Compare-Tab: Globale Variablen
+# Compare tab globals
 MAX_COLS = 5
 DEFAULT_COLS = 2
 
@@ -277,7 +277,6 @@ def get_plot_single(
     return get_plot(df_agg, selected_game, metric, [approximator], yaxis_range)
 
 
-# --- Daten laden ---
 def _with_spinner(message: str, fn: Callable[[], T]) -> T:  # noqa: UP047
     """Run *fn* while showing an animated terminal spinner.
 
@@ -390,7 +389,7 @@ def compute_elo_for_bucket(
         metric: Metric to score by. Use "all" (default) to include all metrics.
         index: Interaction index to filter by (e.g. "SV"). Use "all" to include all indices.
         game: Game name to filter by. Use "all" to include all games.
-        approx_styles: style definitions for plotting.
+        approx_styles: Optional per-approximator style dict mapping names to ``{"color": ..., "dash": ...}``; falls back to ``GLOBAL_APPROX_STYLES``.
 
     Returns:
         A tuple of (leaderboard DataFrame, Plotly bar chart Figure, info markdown string).
@@ -478,7 +477,7 @@ def compute_elo_for_bucket(
 
     shapes = [] if game != "all" else (
         [
-            # CI-Band
+            # Confidence interval band
             {
                 "type": "rect",
                 "x0": i - 0.4,
@@ -491,7 +490,7 @@ def compute_elo_for_bucket(
             }
             for i, (low, high, color) in enumerate(zip(ci_lower, ci_upper, bar_colors, strict=False))
         ] + [
-            # ci_lower line
+            # Lower confidence interval boundary line
             {
                 "type": "line",
                 "x0": i - 0.4, "x1": i + 0.4,
@@ -608,6 +607,7 @@ def compute_all_elo_buckets_parallel(
 
     for _budget, table_df, fig, info_md in results:
         if first_info is None or first_info == "No data":
+            # Use the first bucket that has actual data as the global info string
             first_info = info_md
         outputs.extend([table_df, fig])
 
@@ -629,7 +629,6 @@ def compute_cd_for_bucket(
         metric: Metric to score by. Use "all" to include all metrics.
         index: Interaction index to filter by. Use "all" to include all indices.
         game: Game name to filter by. Use "all" to include all games.
-
 
     Returns:
         A Plotly Figure with the CD diagram.
@@ -871,7 +870,7 @@ def build_app() -> gr.Blocks:
                 multiselect=False,
             )
 
-            # Current bucket index (0-4); initialiZed to Medium (1000) = index 2
+            # Current bucket index (0-4); initialized to Medium (1000) = index 2
             elo_bucket_idx_state = gr.State(value=2)
 
             with gr.Row(equal_height=True):
@@ -909,7 +908,10 @@ def build_app() -> gr.Blocks:
                     game="all",
                 ),
             )
+
             _elo_init_info = _initial_all_bucket_outputs[0]
+
+            # Extract table and figure for the default bucket (index 2 = Medium/1000)
             _elo_init_table = _initial_all_bucket_outputs[1 + 2 * 2]
             _elo_init_fig = _initial_all_bucket_outputs[1 + 2 * 2 + 1]
 
@@ -922,7 +924,6 @@ def build_app() -> gr.Blocks:
             )
 
             # Populate initial cache from precomputed results
-            _cd_fig_placeholder: go.Figure | None = None
             _elo_init_cache = {
                 i: (
                     _initial_all_bucket_outputs[1 + 2 * i],  # table
@@ -1008,9 +1009,10 @@ def build_app() -> gr.Blocks:
                     index: Interaction index to filter by (e.g. "SV"). Use "all" to include all indices.
                     game: Game name to filter by. Use "all" to include all games.
 
-
-                Returns:
-                    Iterator of two Gradio update tuples.
+                Yields:
+                    Two Gradio update tuples: first hides the leaderboard table to force a
+                    size reset; second carries the recomputed label, table, figures, button
+                    states, and updated cache.
                 """
                 new_idx = max(0, min(len(BUDGET_BUCKETS) - 1, current_idx + delta))
                 yield (
@@ -1071,7 +1073,6 @@ def build_app() -> gr.Blocks:
                     index: Interaction index to filter by (e.g. "SV"). Use "all" to include all indices.
                     game: Game name to filter by. Use "all" to include all games.
 
-
                 Yields:
                     Gradio update tuples forwarded from :func:`elo_navigate`.
                 """
@@ -1096,7 +1097,6 @@ def build_app() -> gr.Blocks:
                     metric: Metric to score by; ``"all"`` includes every metric.
                     index: Interaction index to filter by (e.g. "SV"). Use "all" to include all indices.
                     game: Game name to filter by. Use "all" to include all games.
-
 
                 Yields:
                     Gradio update tuples forwarded from :func:`elo_navigate`.
@@ -1314,7 +1314,7 @@ def build_app() -> gr.Blocks:
                         approx_checkboxes[metric] = gr.CheckboxGroup(
                             choices=df_agg["approximator_name"].unique().tolist(),
                             value=df_agg["approximator_name"].unique().tolist(),
-                            label="Approximatoren",
+                            label="Approximators",
                         )
                         with gr.Column(scale=0, min_width=120):
                             deselect_btn = gr.Button("Deselect all", size="sm")
@@ -1340,7 +1340,6 @@ def build_app() -> gr.Blocks:
                         )
                     )
 
-                    # metric als default-Argument binden, sonst nimmt die Lambda immer den letzten Wert
                     for component in [game_dropdowns[metric], approx_checkboxes[metric]]:
                         component.change(
                             fn=lambda g, df, a, m=metric: get_plot(df, g, m, a),
@@ -1436,7 +1435,6 @@ def build_app() -> gr.Blocks:
                     plots, and interactivity updates for the two buttons.
                 """
                 new_n = max(2, min(MAX_COLS, n + delta))
-                updates = []
 
                 # Update column containers (including nested dropdowns)
                 updates = [
@@ -1648,10 +1646,8 @@ def build_app() -> gr.Blocks:
 
             Returns:
                 Flat tuple consumed by the Gradio ``reload_btn`` outputs: updated
-                ``df_state``, ``raw_state``, global leaderboard DataFrame, game
-                dropdown update, per-game leaderboard DataFrame, and for each
-                available metric a game dropdown update, approximator checkbox
-                update, and plot Figure.
+                ``df_state`` and ``raw_state``, followed by a game dropdown update,
+                approximator checkbox update, and plot Figure for each available metric.
             """
             new_raw = db_client.get_all()
             new_df = process_raw_runs(new_raw)
