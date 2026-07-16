@@ -8,10 +8,10 @@ consistency, and automatic cross-validation of experimental setups.
 
 ## 📊 Benchmark Run Plan & Progress Status
 
-Below is the active execution tracker detailing the configurations, feature dimensions (`n`), target indices, and
+Below is the active execution tracker detailing the configurations, feature dimensions ($n$), target indices, and
 specific computational budgets assigned for our ongoing benchmark evaluations.
 
-| Game Name               | Players (`n`) | Game Family    | Target Index                                               | Evaluation Budgets          | Random Seeds |
+| Game Name               | Players ($n$) | Game Family    | Target Index                                               | Evaluation Budgets          | Random Seeds |
 |:------------------------|:-------------:|:---------------|:-----------------------------------------------------------|:----------------------------|:-------------|
 | **CaliforniaHousing**   |       8       | Local XAI      | `SII` (3), `k-SII` (3), `STII` (3), `FBII` (4), `FSII` (4) | 250                         | 10           |
 | **BikeSharing**         |      12       | Local XAI      | `SV`, `k-SII`, `SII`, `STII`, `FBII`, `FSII`               | 250, 500, 1000              | 30           |
@@ -27,7 +27,7 @@ specific computational budgets assigned for our ongoing benchmark evaluations.
 
 ### ⚠️ Special Execution Notes & Hardware Stress Tests
 
-1. **Arrhythmia Extreme Dimensionality (`n=279`)**:
+1. **Arrhythmia Extreme Dimensionality ($n=279$)**:
     * Due to the massive feature space, this dataset requires execution on a secondary high-performance workstation.
     * *\*Note on `SV`*: The `kADDSHAP` approximator has only completed 10 runs strictly at a budget of 1000.
     * *\*\*Note on `SII`*: The `KernelSHAPIQ` and `InconsistentKernelSHAPIQ` approximators have only completed 1 run at
@@ -36,9 +36,9 @@ specific computational budgets assigned for our ongoing benchmark evaluations.
     * This black-box task evaluates image patches/superpixels and is completed strictly via `ExactComputer`. Expect
       significant CPU/RAM spikes during initialization as Hugging Face ViT/ResNet weights are downloaded and heavy
       matrix multiplications are executed.
-    * *\*\*\*Scale Updates*: A new pipeline execution featuring budgets of 250 and 500 across `n=14` players is
+    * *\*\*\*Scale Updates*: A new pipeline execution featuring budgets of 250 and 500 across $n=14$ players is
       currently scheduled.
-    * *Optimization Strategy*: For `n=9` players (resulting in exactly 512 total coalitions), utilizing just 2 discrete
+    * *Optimization Strategy*: For $n=9$ players (resulting in exactly 512 total coalitions), utilizing just 2 discrete
       budgets (250, 500) combined with 3 random seeds is mathematically optimal. A budget of 500 guarantees near-perfect
       algorithmic convergence for this dimension. Furthermore, restricting the evaluated indices strictly to `SV` and
       `k-SII` successfully bypasses redundant high-order evaluations, heavily mitigating thermal throttling while still
@@ -81,9 +81,22 @@ python src/leaderboard/runner/runner_with_config_demo.py configs/default_run.yam
 system will immediately intercept the execution and display a formatted red boundary
 box (`💥 CRITICAL CONFIGURATION ERROR`) detailing exactly how to fix the issue.*
 
----
+### Configuration Flow Diagram
 
-## 🗂️ Exhaustive Parameter Dictionary
+```text
++-------------------+       +-------------------------+       +-------------------------+
+|                   |       |                         |       |                         |
+| default_run.yaml  | ----> | config_manager/loader   | ----> |   Runner Execution      |
+| (User Input)      |       | (Pydantic Validation)   |       |   (shapiq pipeline)     |
+|                   |       |                         |       |                         |
++-------------------+       +-------------------------+       +-------------------------+
+                                        |
+                                        |  - Validates boundaries (e.g., budgets < 2^n)
+                                        |  - Enforces shapiq algorithmic compatibility
+                                        V  - Auto-purges irrelevant parameters
+```
+
+## 🗂️ Exhaustive Parameter Dictionary & `shapiq` Mapping
 
 Every parameter defined in the YAML configuration files maps directly to the underlying `shapiq` library's evaluation
 functions.
@@ -92,7 +105,7 @@ functions.
 
 * **`game`** *(String)*: The exact string identifier of the dataset (e.g., `"AdultCensus"`, `"ImageClassifier"`,
   `"SOUM"`).
-* **`game_family`** *(String)*: The scope of the explanation target.
+* **`game_family`** *(String)*: Determines the scope of the explanation target.
 * `local_xai`: Explains a localized model prediction for a single specific data instance.
 * `global_xai`: Explains dataset-wide feature impacts by evaluating the overall model loss function.
 
@@ -111,7 +124,8 @@ functions.
 
 ### 2. Black-Box Engine Control (`game_params`)
 
-This nested dictionary controls the machine learning backend.
+This nested dictionary controls the machine learning backend. *(Note: The system automatically purges parameters that do
+not belong to the active `game_family`)*.
 
 **Universal Parameters:**
 
@@ -129,7 +143,7 @@ This nested dictionary controls the machine learning backend.
 * **`x`** *(Integer)*: The row index of the specific instance in the dataset to be explained.
 * **`class_to_explain`** *(Integer)*: The index of the target class probability. *Note: If the game is identified as a
   Regression task (e.g., `BikeSharing`), this parameter is automatically purged by the system to prevent downstream
-  TypeErrors.*
+  TypeErrors*.
 
 **Global XAI Exclusive Parameters:** *(Ignored safely if family is local_xai)*
 
@@ -152,15 +166,15 @@ This nested dictionary controls the machine learning backend.
 
 Dictates how the absolute true values are derived against which approximators are measured.
 
-* **`strategy`**: Currently defaults to `"compute"`.
+* **`strategy`**: Currently only support to `"compute"`.
 * **`method`**: The backend computation engine.
-* `"ExactComputer"`: Executes a brute-force calculation evaluating all 2^n feature coalitions.
-* *Anti-Freeze Guard*: The system will throw a Critical Error if you attempt to use this on tabular games where `n > 14`
-  to prevent memory starvation.
-
-
-* `"TreeExplainer"`: Utilizes a highly optimized, polynomial-time tree traversal algorithm (fast for `n > 14`).
-* *Upstream Bug Mitigation*: Due to known matrix initialization bugs in the upstream `shapiq v0.x` core, the
+* **ExactComputer**: Executes a brute-force calculation evaluating all $O(2^n)$ feature coalitions. *Anti-Freeze Guard*:
+  The system will throw a Critical Error if you attempt to use this on tabular games where $n > 14$ to prevent memory
+  starvation.
+* `Anti-Freeze Guard`: The system will throw a Critical Error if you attempt to use this on tabular games where `n > 14`
+  to prevent combinatorial explosion.
+* **TreeExplainer**: Utilizes a highly optimized, polynomial-time tree traversal algorithm (fast for $n > 14$).
+* `Upstream Bug Mitigation`: Due to known matrix initialization bugs in the upstream `shapiq v0.x` core, the
   configuration manager strictly blocks the use of `TreeExplainer` for high-order indices like `"STII"`, `"FSII"`, and
   `"FBII"`.
 
@@ -176,20 +190,21 @@ These parameters accept lists and instruct the runner on how many iterations to 
 
 
 * **`budgets`** *(List[Integer])* : The exact number of black-box model evaluations allowed per algorithm.
-* *Validation Rule*: Budgets must strictly satisfy the boundary condition: `n+1 <= budget < 2^n`. Out-of-bounds budgets
-  are automatically removed to prevent algorithmic crashing.
+* *Validation Rule*: Budgets (e.g., `[0, 1, 2, 3,...,29]`)must strictly satisfy the boundary
+  condition: $n+1 \le \text{budget} < 2^n$. Out-of-bounds
+  budgets are automatically removed to prevent algorithmic crashing.
 
 
-* **`seeds`** *(List[Integer])* : Random seeds (e.g., `[0, 1, 2, 3]`) utilized to stabilize variance across stochastic
-  sampling-based approximators.
+* **`seeds`** *(List[Integer])* : Random seeds (e.g., `[250, 500, 1000, 5000,10000]`) utilized to stabilize variance
+  across stochastic sampling-based approximators.
 
 ---
 
 ## 🛠️ Extending the Benchmark Ecosystem
 
-The benchmark architecture is highly decoupled. If you wish to benchmark novel datasets or custom approximators that are
-not present in the default YAML templates, you do not need to modify the complex validation logic in the configuration
-models. You only need to update the central registries.
+The benchmark architecture is highly decoupled. If you need to test new datasets or algorithms beyond the standard
+templates, you do not need to modify the complex validation logic in the configuration models. You only need to update
+the central registries.
 
 ### Registering a New Game (Dataset)
 
@@ -198,21 +213,19 @@ To introduce a new dataset to the leaderboard ecosystem:
 1. **Ensure DataLoader Exists**: Verify that your data processing function is fully implemented and exposed in the
    `shapiq_games.datasets` module.
 2. **Update the Single Source of Truth**: Open `src/leaderboard/config_manager/constants.py`.
-3. **Bind to Registry**: Import your game class and map it inside either the `LOCAL_GAME_REGISTRY` or
-   `GLOBAL_GAME_REGISTRY` dictionary.
+3. **Bind to Registry**: Add the game class to the `LOCAL_GAME_REGISTRY` or `GLOBAL_GAME_REGISTRY` dictionary.
 4. **Define Dimensionality (CRITICAL)**: You MUST append the exact feature dimension size (e.g., `"MyNewDataset": 45`)
-   to the `GAME_PLAYER_COUNTS` dictionary. The system relies on this hardcoded value to perform budget boundary
-   validations and Out-Of-Memory guards.
+   inside the `GAME_PLAYER_COUNTS` dictionary. The system relies on this value to perform budget boundary validations
+   and Out-Of-Memory guards.
 5. **Task Classification**: If your new dataset is a Regression task (predicting continuous values rather than classes),
-   you MUST add its string name to the `REGRESSION_GAMES` set to activate the loss-function cross-validation locks.
+   you MUST append its string name to the `REGRESSION_GAMES` set to activate the loss-function cross-validation locks.
 
 ### Registering a New Approximator (Algorithm)
 
 To add a new sampling or proxy algorithm to the benchmark comparison:
 
-1. **Verify Upstream Integration**: Ensure that your custom algorithm class is properly implemented, inherits from
-   `shapiq.approximator.Approximator`, and is correctly registered in the appropriate index capability lists inside the
-   core `shapiq` package (e.g., `SV_APPROXIMATORS`).
+1. **Verify Upstream Integration**: Ensure the algorithm class is available in `shapiq.approximator` and is correctly
+   registered in its respective compatibility list (e.g., `SV_APPROXIMATORS`).
 2. **Update the Whitelist**: Open `src/leaderboard/config_manager/constants.py`.
 3. **Append Name**: Add the precise, case-sensitive class name of your algorithm to the `ALL_SUPPORTED_APPROXIMATORS`
    list.
