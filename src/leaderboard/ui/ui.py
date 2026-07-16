@@ -79,8 +79,8 @@ MAX_COLS = 5
 DEFAULT_COLS = 2
 
 # ELO scoring configuration
-ELO_N_BOOTSTRAP_SAMPLES = 200
-ELO_N_PERMUTATIONS = 10
+ELO_N_BOOTSTRAP_SAMPLES = 0
+ELO_N_PERMUTATIONS = 1
 
 
 @dataclass
@@ -380,6 +380,8 @@ def compute_elo_for_bucket(
     index: str = "all",
     game: str = "all",
     approx_styles: dict[str, dict[str, str]] | None = None,
+    n_bootstrap_samples: int = ELO_N_BOOTSTRAP_SAMPLES,
+    n_permutations: int = ELO_N_PERMUTATIONS,
 ) -> tuple[pd.DataFrame, go.Figure, str]:
     """Run ELO scoring for a specific budget bucket and return table + plot.
 
@@ -399,8 +401,8 @@ def compute_elo_for_bucket(
         metric_names=[str(metric)] if metric != "all" else None,
         indices=[str(index)] if index != "all" else None,
         game_names=[str(game)] if game != "all" else None,
-        n_bootstrap_samples=ELO_N_BOOTSTRAP_SAMPLES,
-        n_permutations=ELO_N_PERMUTATIONS,
+        n_bootstrap_samples=n_bootstrap_samples,
+        n_permutations=n_permutations,
     )
     result = scorer.score(df_raw_records)
 
@@ -538,7 +540,7 @@ def compute_elo_for_bucket(
 
 
 def compute_elo_for_bucket_worker(
-    args: tuple[list[dict], int, str, str, str, dict[str, dict[str, str]]],
+    args: tuple[list[dict], int, str, str, str, dict[str, dict[str, str]], int, int],
 ) -> tuple[int, pd.DataFrame, go.Figure, str]:
     """Unpack *args* and delegate to :func:`compute_elo_for_bucket`.
 
@@ -552,7 +554,7 @@ def compute_elo_for_bucket_worker(
         ``(budget, table_df, fig, info_md)`` — budget is passed through so
         results can be matched to their bucket after parallel execution.
     """
-    bucket_records, budget, metric, index, game, approx_styles = args
+    bucket_records, budget, metric, index, game, approx_styles, n_bs, n_perm = args
     table_df, fig, info_md = compute_elo_for_bucket(
         bucket_records,
         budget,
@@ -560,6 +562,8 @@ def compute_elo_for_bucket_worker(
         index,
         game,
         approx_styles,
+        n_bootstrap_samples=n_bs,
+        n_permutations=n_perm
     )
     return budget, table_df, fig, info_md
 
@@ -570,6 +574,8 @@ def compute_all_elo_buckets_parallel(
     metric: str = "all",
     index: str = "all",
     game: str = "all",
+    n_bootstrap_samples: int = ELO_N_BOOTSTRAP_SAMPLES,
+    n_permutations: int = ELO_N_PERMUTATIONS,
 ) -> tuple[Any, ...]:
     """Compute all ELO budget buckets in parallel.
 
@@ -595,7 +601,8 @@ def compute_all_elo_buckets_parallel(
     for bucket in BUDGET_BUCKETS:
         budget_value = int(bucket["budget"])
         bucket_records = [record for record in filtered if record.get("budget") == budget_value]
-        tasks.append((bucket_records, budget_value, metric, index, game, approx_styles))
+        tasks.append((bucket_records, budget_value, metric, index, game, approx_styles,
+                      n_bootstrap_samples, n_permutations))
 
     max_workers = min(len(tasks), 6)
 
@@ -832,9 +839,6 @@ def build_app() -> gr.Blocks:
 
         raw_state = gr.State(value=raw_records)
 
-        with gr.Row():
-            reload_btn = gr.Button("Reload Data", variant="secondary", scale=0)
-
         with gr.Tab("ELO Leaderboard"):
             with gr.Row():
                 gr.HTML("""
@@ -870,16 +874,25 @@ def build_app() -> gr.Blocks:
                 multiselect=False,
             )
 
+            with gr.Row():
+                elo_n_bootstrap = gr.Number(
+                    value=ELO_N_BOOTSTRAP_SAMPLES,
+                    label="Bootstrap Samples (0 = disabled, integer)",
+                    minimum=0,
+                    maximum=1000,
+                    step=10,
+                    precision=0,
+                )
+                elo_n_permutations = gr.Number(
+                    value=ELO_N_PERMUTATIONS,
+                    label="Permutations (integer)",
+                    minimum=1,
+                    maximum=100,
+                    step=1,
+                    precision=0,
+                )
             # Current bucket index (0-4); initialized to Medium (1000) = index 2
             elo_bucket_idx_state = gr.State(value=2)
-
-            with gr.Row(equal_height=True):
-                elo_prev_btn = gr.Button("◀ Lower Budget", scale=0, variant="secondary")
-                elo_bucket_label = gr.Markdown(
-                    value=f"### {BUDGET_BUCKETS[2]['label']}",
-                    elem_id="elo-bucket-label",
-                )
-                elo_next_btn = gr.Button("Higher Budget ▶", scale=0, variant="secondary")
 
             with gr.Row(equal_height=True):
                 elo_approx_filter = gr.CheckboxGroup(
@@ -890,12 +903,21 @@ def build_app() -> gr.Blocks:
                 with gr.Column(scale=0, min_width=120):
                     elo_deselect_btn = gr.Button("Deselect all", size="sm")
                     elo_reset_btn = gr.Button("Reset", size="sm")
-                    elo_apply_btn = gr.Button("Apply", variant="primary", size="sm")
 
             elo_deselect_btn.click(fn=list, outputs=elo_approx_filter)
             elo_reset_btn.click(
                 fn=lambda: df_agg["approximator_name"].unique().tolist(), outputs=elo_approx_filter
             )
+
+            elo_apply_btn = gr.Button("Apply & Recompute", variant="primary")
+
+            with gr.Row(equal_height=True):
+                elo_prev_btn = gr.Button("◀ Lower Budget", scale=0, variant="secondary")
+                elo_bucket_label = gr.Markdown(
+                    value=f"### {BUDGET_BUCKETS[2]['label']}",
+                    elem_id="elo-bucket-label",
+                )
+                elo_next_btn = gr.Button("Higher Budget ▶", scale=0, variant="secondary")
 
             # Pre-compute initial ELO display for all budget buckets
             _initial_all_bucket_outputs = _with_spinner(
@@ -957,6 +979,8 @@ def build_app() -> gr.Blocks:
                 metric: str = "all",
                 index: str = "all",
                 game: str = "all",
+                n_bootstrap_samples: int = ELO_N_BOOTSTRAP_SAMPLES,
+                n_permutations: int = ELO_N_PERMUTATIONS,
             ) -> tuple[str, pd.DataFrame, go.Figure, str, go.Figure]:
                 """Compute the ELO leaderboard and CD diagram for the given budget bucket.
 
@@ -978,7 +1002,9 @@ def build_app() -> gr.Blocks:
                 ]
                 budget = int(bucket["budget"])
                 table_df, fig, info_md = compute_elo_for_bucket(
-                    filtered, budget, metric, index, game, GLOBAL_APPROX_STYLES.copy()
+                    filtered, budget, metric, index, game, GLOBAL_APPROX_STYLES.copy(),
+                    n_bootstrap_samples=n_bootstrap_samples,
+                    n_permutations=n_permutations,
                 )
                 cd_fig = compute_cd_for_bucket(filtered, budget, metric, index, game)
                 label_md = f"### {bucket['label']}"
@@ -993,6 +1019,8 @@ def build_app() -> gr.Blocks:
                 metric: str = "all",
                 index: str = "all",
                 game: str = "all",
+                n_bootstrap_samples: int = ELO_N_BOOTSTRAP_SAMPLES,
+                n_permutations: int = ELO_N_PERMUTATIONS,
             ) -> Iterator[Any]:
                 """Navigate between budget buckets and stream UI updates.
 
@@ -1038,7 +1066,8 @@ def build_app() -> gr.Blocks:
                         cache[new_idx] = (table_df, fig, info_md, cd_fig)
                 else:
                     label_md, table_df, fig, info_md, cd_fig = update_elo_tab(
-                        new_idx, raw_records, selected_approxs, metric, index, game
+                        new_idx, raw_records, selected_approxs, metric, index, game,
+                        n_bootstrap_samples, n_permutations,
                     )
                     cache[new_idx] = (table_df, fig, info_md, cd_fig)
                 yield (
@@ -1061,6 +1090,8 @@ def build_app() -> gr.Blocks:
                 metric: str = "all",
                 index: str = "all",
                 game: str = "all",
+                n_bootstrap_samples: int = ELO_N_BOOTSTRAP_SAMPLES,
+                n_permutations: int = ELO_N_PERMUTATIONS,
             ) -> Iterator[Any]:
                 """Navigate to the previous (lower) budget bucket.
 
@@ -1076,7 +1107,8 @@ def build_app() -> gr.Blocks:
                 Yields:
                     Gradio update tuples forwarded from :func:`elo_navigate`.
                 """
-                yield from elo_navigate(idx, -1, raw_records, selected_approxs, elo_cache, metric, index, game)
+                yield from elo_navigate(idx, -1, raw_records, selected_approxs, elo_cache, metric, index, game,
+                                        n_bootstrap_samples, n_permutations)
 
             def elo_next(
                 idx: int,
@@ -1086,6 +1118,8 @@ def build_app() -> gr.Blocks:
                 metric: str = "all",
                 index: str = "all",
                 game: str = "all",
+                n_bootstrap_samples: int = ELO_N_BOOTSTRAP_SAMPLES,
+                n_permutations: int = ELO_N_PERMUTATIONS,
             ) -> Iterator[Any]:
                 """Navigate to the next (higher) budget bucket.
 
@@ -1101,7 +1135,8 @@ def build_app() -> gr.Blocks:
                 Yields:
                     Gradio update tuples forwarded from :func:`elo_navigate`.
                 """
-                yield from elo_navigate(idx, +1, raw_records, selected_approxs, elo_cache, metric, index, game)
+                yield from elo_navigate(idx, +1, raw_records, selected_approxs, elo_cache, metric, index, game,
+                                        n_bootstrap_samples, n_permutations)
 
             elo_prev_btn.click(
                 fn=elo_prev,
@@ -1113,6 +1148,8 @@ def build_app() -> gr.Blocks:
                     elo_metric_filter,
                     elo_index_filter,
                     elo_game_filter,
+                    elo_n_bootstrap,
+                    elo_n_permutations,
                 ],
                 outputs=[
                     elo_bucket_idx_state,
@@ -1136,6 +1173,8 @@ def build_app() -> gr.Blocks:
                     elo_metric_filter,
                     elo_index_filter,
                     elo_game_filter,
+                    elo_n_bootstrap,
+                    elo_n_permutations,
                 ],
                 outputs=[
                     elo_bucket_idx_state,
@@ -1176,6 +1215,8 @@ def build_app() -> gr.Blocks:
                 metric: str = "all",
                 index: str = "all",
                 game: str = "all",
+                n_bootstrap_samples: int = ELO_N_BOOTSTRAP_SAMPLES,
+                n_permutations: int = ELO_N_PERMUTATIONS,
             ) -> Iterator[Any]:
                 """Recompute ELO results for all budget buckets simultaneously.
 
@@ -1204,6 +1245,8 @@ def build_app() -> gr.Blocks:
                     metric=metric,
                     index=index,
                     game=game,
+                    n_bootstrap_samples=n_bootstrap_samples,
+                    n_permutations=n_permutations,
                 )
 
                 first_info = parallel_outputs[0]
@@ -1254,45 +1297,8 @@ def build_app() -> gr.Blocks:
                     elo_metric_filter,
                     elo_index_filter,
                     elo_game_filter,
-                ],
-                outputs=_all_bucket_outputs,
-            )
-
-            elo_metric_filter.change(
-                fn=update_all_buckets,
-                inputs=[
-                    elo_bucket_idx_state,
-                    raw_state,
-                    elo_approx_filter,
-                    elo_metric_filter,
-                    elo_index_filter,
-                    elo_game_filter,
-                ],
-                outputs=_all_bucket_outputs,
-            )
-
-            elo_index_filter.change(
-                fn=update_all_buckets,
-                inputs=[
-                    elo_bucket_idx_state,
-                    raw_state,
-                    elo_approx_filter,
-                    elo_metric_filter,
-                    elo_index_filter,
-                    elo_game_filter,
-                ],
-                outputs=_all_bucket_outputs,
-            )
-
-            elo_game_filter.change(
-                fn=update_all_buckets,
-                inputs=[
-                    elo_bucket_idx_state,
-                    raw_state,
-                    elo_approx_filter,
-                    elo_metric_filter,
-                    elo_index_filter,
-                    elo_game_filter,
+                    elo_n_bootstrap,
+                    elo_n_permutations,
                 ],
                 outputs=_all_bucket_outputs,
             )
@@ -1638,54 +1644,10 @@ def build_app() -> gr.Blocks:
 
             det_reset_btn.click(fn=reset_det_filters, outputs=_det_filters)
 
-        def on_reload() -> tuple[Any, ...]:
-            """Reloads the raw dataset and refreshes all UI components.
+        with gr.Tab("📖 Help"):
+            readme_content = (CURRENT_DIR / "README.md").read_text(encoding="utf-8") if (CURRENT_DIR / "README.md").exists() else "README not found."
+            gr.Markdown(readme_content)
 
-            Fetches the fresh data from the source, updates the global visualization
-            styles, and rebuilds all tables and plots for the interface.
-
-            Returns:
-                Flat tuple consumed by the Gradio ``reload_btn`` outputs: updated
-                ``df_state`` and ``raw_state``, followed by a game dropdown update,
-                approximator checkbox update, and plot Figure for each available metric.
-            """
-            new_raw = db_client.get_all()
-            new_df = process_raw_runs(new_raw)
-            update_global_styles(new_df)
-
-            games = new_df["game_name"].unique().tolist()
-            approxs = new_df["approximator_name"].unique().tolist()
-            first_game = games[0]
-
-            outputs: list[Any] = [
-                new_df,
-                new_raw,
-            ]
-
-            for m in available_metrics:
-                outputs.extend(
-                    [
-                        gr.Dropdown(choices=games, value=first_game),
-                        gr.CheckboxGroup(choices=approxs, value=approxs),
-                        get_plot(new_df, first_game, m, approxs),
-                    ]
-                )
-
-            return tuple(outputs)
-
-        reload_btn.click(
-            fn=on_reload,
-            inputs=[],
-            outputs=[
-                df_state,
-                raw_state,
-                *[
-                    comp
-                    for m in available_metrics
-                    for comp in [game_dropdowns[m], approx_checkboxes[m], metric_plots[m]]
-                ],
-            ],
-        )
 
         elo_jump_btn.click(
             fn=lambda approxs, budget_idx, metric, index, game: (
