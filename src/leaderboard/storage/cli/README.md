@@ -23,8 +23,6 @@ The module is structured as follows:
 
 The CLI is a small custom Read-Eval-Print Loop (REPL).
 
-Can you shorten this a bit and make it sound more natural as well
-
 | File | Responsibility |
 |---|---|
 | [`cli.py`](cli.py) | Entry point. Parses top-level startup flags (`--backend`, `--no-color`) and constructs a `StorageREPL` and triggers its run. Through the optional flag `--backend` a connection is opened immediately. Handles `KeyboardInterrupt` by closing all connections before exiting. |
