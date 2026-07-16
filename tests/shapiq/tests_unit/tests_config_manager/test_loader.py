@@ -3,7 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from leaderboard.config_manager import GroundTruthConfig, MVPRunConfig, load_and_validate_config
-from leaderboard.runner.runner_with_config_demo import expand_validated_config
+from leaderboard.runner.runner_with_config import expand_validated_config
 
 
 def test_expand_validated_config_creates_correct_cartesian_product():
