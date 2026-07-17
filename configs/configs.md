@@ -67,6 +67,8 @@ you can use the predefined YAML files located inside the Soybean n = 35 folder, 
 SII_Soybean n = 35.yaml, or k-SII_Soybean n = 35.yaml. You can clone these files via the command line, or simply open
 them in your IDE and manually copy and paste the YAML content directly into your default_run.yaml.
 
+<img width="443" height="410" alt="Screenshot 2026-07-17 at 13 41 10" src="https://github.com/user-attachments/assets/f1f1d477-d203-423c-977d-7f8f55ba4199" />
+
 ```bash
 cp configs/template_tabular.yaml configs/default_run.yaml
 
@@ -74,10 +76,10 @@ cp configs/template_tabular.yaml configs/default_run.yaml
 
 ### Step 3: Execute the Sweep
 
-Modify `default_run.yaml` according to your experimental parameters. Pass it to the runner script:
+Modify `default_run.yaml` according to your experimental parameters then start the runner script:
 
 ```bash
-python src/leaderboard/runner/runner_with_config.py configs/default_run.yaml
+python src/leaderboard/runner/runner_with_config.py 
 
 ```
 
@@ -133,19 +135,20 @@ functions.
 * **`n_players`** *(Integer)*: The dimension of the game (number of features). For tabular games, this is auto-inferred.
   For visual games, you must align this with the specific model architecture (e.g., `9` for `"vit_9_patches"`).
 
+
 ### 2. Black-Box Engine Control (`game_params`)
 
-This nested dictionary controls the machine learning backend. *(Note: The system automatically purges parameters that do
-not belong to the active `game_family`)*.
+This nested dictionary controls the machine learning backend. *(Note: The system automatically purges parameters that do not belong to the active `game_family`)*.
 
 **Universal Parameters:**
 
-* **`model_name`** *(String)*: The machine learning algorithm acting as the black box. Tabular games support
-  `"decision_tree"` (highly recommended for performance), `"random_forest"`, or `"gradient_boosting"`. Visual games
-  support `"vit_9_patches"` or `"resnet_18"`.
-* **`normalize`** *(Boolean)*: Centers the baseline game values to 0 for the empty feature set. Set to `true` for
-  standard ML tasks.
+* **`model_name`** *(String)*: The machine learning algorithm acting as the black box. Visual games support `"vit_9_patches"` or `"resnet_18"`. Tabular games support:
+  * `"decision_tree"`: **(Highly Recommended)** Extremely fast. Best for debugging and large games ($n > 14$).
+  * `"random_forest"`: Very slow. Every coalition requires traversing all trees. May cause overheating when paired with sampling approximators.
+  * `"gradient_boosting"`: Extremely slow. Use strictly for realistic baseline benchmarking on small games.
+* **`normalize`** *(Boolean)*: Centers the baseline game values to 0 for the empty feature set. Set to `true` for standard ML tasks.
 * **`verbose`** *(Boolean)*: Toggles internal game-level debugging logs.
+
 
 **Local XAI Exclusive Parameters:** *(Ignored safely if family is global_xai)*
 
@@ -183,13 +186,11 @@ Dictates how the absolute true values are derived against which approximators ar
 
 * **`strategy`**: Currently only support to `"compute"`.
 * **`method`**: The backend computation engine.
-* **ExactComputer**: Executes a brute-force calculation evaluating all $O(2^n)$ feature coalitions. *Anti-Freeze Guard*:
-  The system will throw a Critical Error if you attempt to use this on tabular games where $n > 14$ to prevent memory
-  starvation.
+* **ExactComputer**: Executes a brute-force calculation evaluating all $O(2^n)$ feature coalitions. 
 * `Anti-Freeze Guard`: The system will throw a Critical Error if you attempt to use this on tabular games where `n > 14`
   to prevent combinatorial explosion.
 * **TreeExplainer**: Utilizes a highly optimized, polynomial-time tree traversal algorithm (fast for $n > 14$).
-* `Upstream Bug Mitigation`: Due to known matrix initialization bugs in the upstream `shapiq v0.x` core, the
+* `Upstream Bug Mitigation`: Due to known matrix initialization bugs in the upstream `shapiq v1.5.0` core, the
   configuration manager strictly blocks the use of `TreeExplainer` for high-order indices like `"STII"`, `"FSII"`, and
   `"FBII"`.
 
@@ -197,48 +198,54 @@ Dictates how the absolute true values are derived against which approximators ar
 
 These parameters accept lists and instruct the runner on how many iterations to sweep.
 
-* **`approximators`** *(List [String] )* : The sampling or regression algorithms you wish to benchmark (e.g.,
-  `["OwenSamplingSV", "KernelSHAPIQ"]`).
-* *Validation Rule*: The system verifies that the algorithms requested are officially registered in
-  `shapiq.approximator` AND that they mathematically support your chosen `index`. Incompatible algorithms are
-  automatically purged from the run list.
+**`approximators`** *(List[String])*
+The sampling or regression algorithms you wish to benchmark.
 
+* **Validation Rule**: The system verifies that the algorithms requested are officially registered in `shapiq.approximator` AND that they mathematically support your chosen `index`. Incompatible algorithms are automatically purged from the run list.
 
-* **`budgets`** *(List [Integer] )* : The exact number of black-box model evaluations allowed per algorithm.
-* *Validation Rule*: Budgets (e.g., `[0, 1, 2, 3,...,29]`)must strictly satisfy the boundary
-  condition: $n+1 \le \text{budget} < 2^n$. Out-of-bounds
-  budgets are automatically removed to prevent algorithmic crashing.
+**Supported Whitelists by Index:**
 
+| Index Type | Supported Approximators |
+| --- | --- |
+| **SV** | `"OwenSamplingSV"`, `"StratifiedSamplingSV"`, `"SVARM"`, `"UnbiasedKernelSHAP"`, `"PermutationSamplingSV"`, `"KernelSHAP"`, `"kADDSHAP"`, `"ProxySPEX"`, `"ProxySHAP"` |
+| **SII / k-SII** | `"PermutationSamplingSII"`, `"KernelSHAPIQ"`, `"InconsistentKernelSHAPIQ"`, `"SVARMIQ"`, `"SHAPIQ"`, `"ProxySPEX"`, `"ProxySHAP"` |
+| **STII** | `"PermutationSamplingSTII"`, `"SVARMIQ"`, `"SHAPIQ"`, `"ProxySPEX"`, `"ProxySHAP"` |
+| **FSII** | `"RegressionFSII"`, `"SVARMIQ"`, `"SHAPIQ"`, `"ProxySPEX"`, `"ProxySHAP"` |
+| **FBII** | `"RegressionFBII"`, `"ProxySPEX"`, `"ProxySHAP"` |
 
-* **`seeds`** *(List [Integer] )* : Random seeds (e.g., `[250, 500, 1000, 5000,10000]`) utilized to stabilize variance
-  across stochastic sampling-based approximators.
+* **⚠️ Critical Algorithmic Notes & Exceptions**: `"BV"` and `"CHII"` are currently not supported by the runner pipeline. `"SPEX"` has been replaced by `"ProxySPEX"` due to performance issues. `"SVARM"` and `"SVARMIQ"` will be automatically removed from the run when the player count ($n$) exceeds 20 due to performance issues. `"KernelSHAPIQ"` and `"InconsistentKernelSHAPIQ"` strictly require `SV`, `SII`, or `k-SII`. `"MSRBiased"` has been removed from the pipeline due to deprecation.
+
+**`budgets`** *(List[Integer] e.g., `[250, 500, 1000, 5000,10000]`)*
+The exact number of black-box model evaluations allowed per algorithm.
+
+* **Validation Rule**: Budgets must strictly satisfy the boundary condition $n+1 \le \text{budget} < 2^n$. Out-of-bounds budgets are automatically removed to prevent algorithmic crashing.
+* **Visual Game Warning**: For ImageClassifier games, the computational cost per sample is exceptionally high. It is strongly recommended to start with lower budgets (e.g., 250, 500).
+
+**`seeds`** *(List[Integer] e.g., `[0, 1, 2, 3,...,29]`)*
+Random seeds utilized to stabilize variance across stochastic sampling-based approximators.
 
 ---
 
 ## 🛠️ Extending the Benchmark Ecosystem
 
-The benchmark architecture is highly decoupled. If you need to test new datasets or algorithms beyond the standard
-templates, you do not need to modify the complex validation logic in the configuration models. You only need to update
-the central registries.
+The benchmark architecture is highly decoupled. If you need to test new datasets or algorithms beyond the standard templates, you do not need to modify the complex validation logic in the configuration models. You only need to update the central registries located within the `config_manager`.
+
+*(Refer to the `config_manager` directory and its dedicated README for complete integration steps)*
+
+<img width="381" height="261" alt="Screenshot 2026-07-17 at 14 04 04" src="https://github.com/user-attachments/assets/893c9b37-7e8a-44cc-87e1-9f54d970b304" />
 
 ### Registering a New Game (Dataset)
 
-To introduce a new dataset to the leaderboard ecosystem—whether it is already available in the `shapiq` dataset module
-or a custom one from the web:
+To introduce a new dataset to the leaderboard ecosystem, whether it is already available in the `shapiq` dataset module or a custom one from the web:
 
-1. **Implement & Register in Config Manager**: First, follow the step-by-step code modification guide in the
-   `config_manager` README to set up the data loader, dimensions, and task types.
-2. **Expose the Game Name**: Open `src/leaderboard/config_manager/constants.py` and simply add your new game's string
-   identifier to the designated game registry list.
+1. **Follow the Config Manager Guide**: First, refer to the step-by-step code modification guide in the `config_manager/README.md` to properly set up the data loader, declare the feature dimensions ($n$), and define the task type.
+2. **Expose the Game Name**: Open `src/leaderboard/config_manager/constants.py` and simply add your new game's string identifier to the designated game registry list.
 
 ### Registering a New Approximator (Algorithm)
 
 To add a new sampling or proxy algorithm to the benchmark comparison:
 
-1. **Verify Upstream Integration**: Ensure the algorithm class is fully integrated into `shapiq.approximator` and
-   documented in the `config_manager` workflow.
-2. **Append Approximator Name**: Open `src/leaderboard/config_manager/constants.py` and add the precise, case-sensitive
-   class name of your algorithm to the supported whitelist.
+1. **Verify Upstream Integration**: Ensure the algorithm class is fully implemented and integrated into the core `shapiq.approximator` package.
+2. **Append Approximator Name**: Open `src/leaderboard/config_manager/constants.py` and add the precise, case-sensitive class name of your algorithm to the supported whitelist.
 
-Once the name is added here, the central Pydantic validators will immediately recognize it as a legitimate input,
-allowing you to invoke it directly via the `approximators` list in your `default_run.yaml` files.
+Once the name is added here, the central Pydantic validators will immediately recognize it as a legitimate input, allowing you to invoke it directly via the `approximators` list in your `default_run.yaml` files.
