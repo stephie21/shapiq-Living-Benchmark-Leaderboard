@@ -231,6 +231,7 @@ Random seeds utilized to stabilize variance across stochastic sampling-based app
 The benchmark architecture is highly decoupled. If you need to test new datasets or algorithms beyond the standard templates, you do not need to modify the complex validation logic in the configuration models. You only need to update the central registries located within the `config_manager`.
 
 *(Refer to the [config_manager README](../src/leaderboard/config_manager/README.md) for complete integration steps)*
+
 <img width="381" height="261" alt="Screenshot 2026-07-17 at 14 04 04" src="https://github.com/user-attachments/assets/893c9b37-7e8a-44cc-87e1-9f54d970b304" />
 
 ### Registering a New Game (Dataset)
