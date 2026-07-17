@@ -91,7 +91,7 @@ def expand_config(config: dict[str, Any]) -> list[dict[str, Any]]:
     if budgets == [None]:
         raise InvalidConfigMissingBudgetsError from None
 
-    run_configs = [
+    return [
         {
             "game": game,
             "index": index,
@@ -104,7 +104,3 @@ def expand_config(config: dict[str, Any]) -> list[dict[str, Any]]:
         for approximator in approximators
         for budget in budgets
     ]
-
-    # logger.info("Expanded configuration into %d run configs", len(run_configs))
-
-    return run_configs
