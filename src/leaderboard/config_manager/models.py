@@ -7,7 +7,7 @@ from __future__ import annotations
 
 from typing import Any, Literal
 
-from pydantic import BaseModel, Field, field_validator, model_validator
+from pydantic import BaseModel, Field, model_validator
 
 import shapiq
 
@@ -47,17 +47,15 @@ class GroundTruthConfig(BaseModel):
 
     @model_validator(mode="after")
     def validate_gt_params(self) -> GroundTruthConfig:
-        # validate GT strategy
+        """Validate ground truth strategies and methods configuration."""
         if self.strategy not in SUPPORTED_GT_STRATEGY:
-            raise InvalidParameterError(
-                "ground_truth.strategy", self.strategy, SUPPORTED_GT_STRATEGY
-            ) from None
+            param_path = "ground_truth.strategy"
+            raise InvalidParameterError(param_path, self.strategy, SUPPORTED_GT_STRATEGY) from None
 
         # validate GT method
         if self.method not in SUPPORTED_GT_METHODS:
-            raise InvalidParameterError(
-                "ground_truth.method", self.method, SUPPORTED_GT_METHODS
-            ) from None
+            param_path = "ground_truth.method"
+            raise InvalidParameterError(param_path, self.method, SUPPORTED_GT_METHODS) from None
 
         return self
 
@@ -285,14 +283,16 @@ class MVPRunConfig(BaseModel):
 
         model_name = cleaned_params.get("model_name")
         if model_name is not None and model_name not in SUPPORTED_MODELS:
-            raise InvalidParameterError("model_name", model_name, SUPPORTED_MODELS) from None
+            param_key = "model_name"
+            raise InvalidParameterError(param_key, model_name, SUPPORTED_MODELS) from None
 
         loss_function = cleaned_params.get("loss_function")
         if loss_function is not None:
             # 1. white list validation
             if loss_function not in SUPPORTED_LOSS_FUNCTIONS:
+                param_key = "loss_function"
                 raise InvalidParameterError(
-                    "loss_function", loss_function, SUPPORTED_LOSS_FUNCTIONS
+                    param_key, loss_function, SUPPORTED_LOSS_FUNCTIONS
                 ) from None
 
             # 2. validate game type: Regression vs Classification

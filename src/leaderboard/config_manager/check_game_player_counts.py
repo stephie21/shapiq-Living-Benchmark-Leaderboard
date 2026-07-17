@@ -6,6 +6,7 @@ This module contains all Pydantic models and their associated validators for the
 from __future__ import annotations
 
 import logging
+import sys
 
 # Import the dataset loader functions from your shapiq_games package
 import shapiq_games.datasets._all as loaders
@@ -55,7 +56,7 @@ def main() -> None:
         "Soybean": "load_soybean",
         "Splice": "load_splice",
         "TaiwaneseBankruptcy": "load_taiwanese_bankruptcy",
-        # "Annealing": "load_annealing",
+        "Annealing": "load_annealing",
         "Arrhythmia": "load_arrhythmia",
     }
 
@@ -70,7 +71,7 @@ def main() -> None:
             # The number of columns in X is the exact number of players (n_players)
             n_players = X.shape[1]
             output = f"{game_name:<25} | {n_players:<15}"
-            print(output)
+            sys.stdout.write(f"{output}\n")
 
         except Exception:
             logger.exception("Failed to check player count for %s", game_name)

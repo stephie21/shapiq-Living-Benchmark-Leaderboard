@@ -10,7 +10,7 @@ tracebacks with clean, actionable terminal UI boundaries (💥).
 ## 🏗️ Architecture & Data Flow
 
 ```text
-  [YAML Template]  
+  [YAML Template]
          |
          v
   +--------------+       (Validation Layer - models.py)

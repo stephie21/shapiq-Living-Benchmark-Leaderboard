@@ -26,6 +26,7 @@ class InvalidBudgetValueError(ValueError):
     """
 
     def __init__(self, entries: list[object]) -> None:
+        """Initialize the exception with configuration entries."""
         formatted = ", ".join(repr(e) for e in entries)
         message = (
             f"Malformed budget entries found: [{formatted}]. "
@@ -144,19 +145,10 @@ class UnsupportedImputerError(ValueError):
     """Exception raised when an imputer method is not supported."""
 
     def __init__(self, imputer: str, supported_imputers: set[str] | list[str]) -> None:
-        """Initialize the UnsupportedImputerError with the invalid imputer and allowed options."""
-        formatted_imputers = ", ".join(sorted(supported_imputers))
-        message = f"Unsupported imputer '{imputer}'. Available imputers: {formatted_imputers}"
-        super().__init__(message)
-
-
-class UnsupportedImputerError(ValueError):
-    """Exception raised when an imputer method is not supported."""
-
-    def __init__(self, imputer: str, supported_imputers: set[str] | list[str]) -> None:
+        """Initialize the exception with configuration entries."""
         body = (
             f"Your input imputer: '{imputer}' is invalid!\n\n"
-            f"Available imputers are:\n  {list(sorted(supported_imputers))}"
+            f"Available imputers are:\n  {sorted(supported_imputers)}"
         )
         super().__init__(format_config_error("INVALID INPUT AT PARAMETER 'imputer'", body))
 
@@ -165,9 +157,10 @@ class InvalidParameterError(ValueError):
     """Raised when any string parameter is not found in the constants whitelist."""
 
     def __init__(self, param_name: str, input_value: object, allowed_values: list | set) -> None:
+        """Initialize the exception with configuration entries."""
         body = (
             f"Your input for '{param_name}': '{input_value}' is invalid!\n\n"
-            f"Allowed values are:\n  {list(sorted(allowed_values))}"
+            f"Allowed values are:\n  {sorted(allowed_values)}"
         )
         super().__init__(format_config_error(f"INVALID INPUT AT PARAMETER '{param_name}'", body))
 

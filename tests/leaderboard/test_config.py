@@ -6,8 +6,10 @@ defined in models.py and loader.py.
 
 from __future__ import annotations
 
-from pathlib import Path
+from typing import TYPE_CHECKING
 
+if TYPE_CHECKING:
+    from pathlib import Path
 import pytest
 import yaml
 from pydantic import ValidationError
@@ -15,7 +17,7 @@ from pydantic import ValidationError
 from leaderboard.config_manager.loader import load_and_validate_config
 
 # Import the core configuration models
-from leaderboard.config_manager.models import GroundTruthConfig, MVPRunConfig
+from leaderboard.config_manager.models import MVPRunConfig
 
 
 @pytest.fixture

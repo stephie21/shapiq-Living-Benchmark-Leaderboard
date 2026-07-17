@@ -43,9 +43,9 @@ def load_and_validate_config(yaml_path: str | Path) -> MVPRunConfig | None:
         custom_errors = [err.get("msg") for err in e.errors() if "💥" in err.get("msg", "")]
 
         if custom_errors:
-            print("\n".join(custom_errors), file=sys.stderr)
+            sys.stderr.write("\n".join(custom_errors) + "\n")
         else:
-            print(f"\n💥 Configuration structure error:\n{e}", file=sys.stderr)
+            sys.stderr.write(f"\n💥 Configuration structure error:\n{e}\n")
         sys.exit(1)
     except (OSError, yaml.YAMLError, TypeError, ValueError):
         logger.exception("Configuration Validation Error")

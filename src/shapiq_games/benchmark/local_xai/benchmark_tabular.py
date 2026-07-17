@@ -916,4 +916,3 @@ class TaiwaneseBankruptcy(LocalExplanation):
             verbose=verbose,
             random_state=random_state,
         )
-
