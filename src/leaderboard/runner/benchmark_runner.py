@@ -98,13 +98,6 @@ def run_benchmark(
         # aggregation
     aggregated_result = aggregate_fn(results)
 
-    # print-out
-    # logger.info("number of raw results: %d", len(results))
-    # logger.info("First raw run record:")
-    # logger.info(json.dumps(results[0], indent=2))
-    # logger.info("\nAggregated result:")
-    # logger.info(json.dumps(aggregated_result, indent=2))
-
     return {
         "raw_results": results,
         "aggregated_result": aggregated_result,

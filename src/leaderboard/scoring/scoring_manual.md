@@ -30,6 +30,8 @@ Since Elo ratings are updated sequentially, the order of pairwise matches can in
 
 In addition, the scorer supports bootstrapping over comparable groups, inspired by the TabArena(https://github.com/autogluon/tabarena/tree/main) Elo rating system approach. For each bootstrap sample the comparable groups are sampled with replacement and the ratings recomputed. If match-order permutations are enabled, the scorer averages the permutation-based Elo ratings within each sample. The bootstrap score distribution is used to compute confidence intervals. These intervals show how stable the approximator rankings are under resampling of the available comparable groups.
 
+The default configuration uses an initial Elo rating of 1 000, a K-factor of 16, and a tie tolerance of 0 (exact ties only). Bootstrap resampling defaults to 200 samples with 10 match-order permutations each, yielding 95 % confidence intervals.
+
 ### How to use the EloScorer
 
 Construct the EloScorer by giving the benchmark context over which the approximators should be compared. The context can be restricted by metrics, games, indices, and budgets. If one of these filter arguments is set to `None`, the scorer uses all available values for that argument.
@@ -51,6 +53,22 @@ scorer = EloScorer(
 
 result = scorer.score(raw_records)
 ```
+
+### Critical Difference analysis
+
+The `CriticalDifferenceScorer` ranks approximators per comparable group (same game, index, max order,
+budget, and ground-truth method) and metric. Friedman's test checks
+whether any ranking differences are globally significant. If significant, Nemenyi's
+post-hoc test identifies which pairs differ — those that do *not* differ significantly
+are connected by a bar in the CD diagram.
+
+By default, seeds are aggregated within each comparable group before ranking, consistent
+with the EloScorer. In the leaderboard UI, `approx_seed` is added as an additional group
+key so that each seed is treated as an individual observation — this is why CD and ELO
+rankings may diverge.
+
+Reference: Demšar, J. (2006). Statistical comparisons of classifiers over multiple data
+sets. *Journal of Machine Learning Research*, 7, 1–30.
 
 ### Addition of a new scorer
 
