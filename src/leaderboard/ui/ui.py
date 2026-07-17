@@ -79,8 +79,8 @@ MAX_COLS = 5
 DEFAULT_COLS = 2
 
 # ELO scoring configuration
-ELO_N_BOOTSTRAP_SAMPLES = 0
-ELO_N_PERMUTATIONS = 1
+ELO_N_BOOTSTRAP_SAMPLES = 200
+ELO_N_PERMUTATIONS = 10
 
 
 @dataclass
@@ -475,7 +475,7 @@ def compute_elo_for_bucket(
             text=[f"{s:.1f}" for s in elo_scores],
             textposition="outside",
             hovertemplate="<b>%{x}</b><br>ELO: %{y:.1f}<extra></extra>"
-            if game != "all"
+            if game != "all" or n_bootstrap_samples == 0
             else "<b>%{x}</b><br>ELO: %{y:.1f}<br>95% CI: [%{customdata[0]:.1f}, %{customdata[1]:.1f}]<extra></extra>",
             customdata=list(zip(ci_lower, ci_upper, strict=False)),
         )
@@ -483,7 +483,7 @@ def compute_elo_for_bucket(
 
     shapes = (
         []
-        if game != "all"
+        if game != "all" or n_bootstrap_samples == 0
         else (
             [
                 # Confidence interval band
@@ -517,7 +517,7 @@ def compute_elo_for_bucket(
     )
 
     y_min = min(elo_scores) - 20 if elo_scores else 950
-    y_max = max(ci_upper) + 60 if ci_upper else 1050
+    y_max = (max(ci_upper) + 60 if n_bootstrap_samples > 0 else max(elo_scores) + 60) if elo_scores else 1050
 
     fig.update_layout(
         title=f"ELO Ratings — Budget {budget}",
@@ -537,20 +537,19 @@ def compute_elo_for_bucket(
     n_perm = n_perm if isinstance(n_perm, int) else 1
     metric_label = metric or "all"
     index_label = index or "all"
-    game_label = game or "all"
     n_groups = cast("int", result.metadata.get("n_groups", 0))
 
     info_md = (
         f"Metric: **{metric_label}** | Index: **{index_label}** | Game: **{game if game != 'all' else 'all'}** | "
         f"Bootstrap samples: **{n_bs}** | Permutations: **{n_perm}**"
         + (
-            " | ⚠️ ELO and CD rankings may diverge when aggregating over multiple indices and/or multiple games."
-            if index_label == "all" or game_label == "all"
+            " | ⚠️ Confidence intervals are not meaningful with only one comparable group (single game AND single index selected)."
+            if n_groups <= 1
             else ""
         )
         + (
-            " | ⚠️ Confidence intervals are not meaningful with only one comparable group (single game selected)."
-            if n_groups <= 1
+            " | ⚠️ Confidence intervals are not meaningful with bootstrap samples ≤ 1."
+            if n_bs <= 1
             else ""
         )
     )
@@ -829,10 +828,11 @@ def build_app() -> gr.Blocks:
         for m in available_metrics:
             col = f"{m}_mean"
 
-            df_filtered = df_agg[
-                (df_agg["game_name"].isin(active_games))
-                & (df_agg["approximator_name"].isin(active_approxs))
-            ]
+            active_pairs = list(zip(active_games, active_approxs))
+            mask = pd.Series(False, index=df_agg.index)
+            for game, approx in active_pairs:
+                mask |= (df_agg["game_name"] == game) & (df_agg["approximator_name"] == approx)
+            df_filtered = df_agg[mask]
 
             if not df_filtered.empty:
                 valid_values = pd.to_numeric(df_filtered[col], errors="coerce")
@@ -1011,6 +1011,9 @@ def build_app() -> gr.Blocks:
                     with gr.TabItem("ELO Scores"):
                         elo_plot = gr.Plot(value=_elo_init_fig, label="ELO Scores")
                     with gr.TabItem("CD Diagram"):
+                        gr.Markdown(
+                            "CD rankings may diverge from ELO as ELO aggregates seeds before scoring while CD uses them as individual observations."
+                        )
                         elo_cd_plot = gr.Plot(value=_elo_init_cd_figs[2], label="CD Diagram")
 
             def update_elo_tab(
