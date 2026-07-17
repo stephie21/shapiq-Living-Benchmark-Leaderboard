@@ -1,7 +1,6 @@
-#PDL Sensitivity Analysis
+# Pairwise Difference Learning (PDL) Sensitivity Analysis
 
 ## PDL Repository Status
-
 **Partial. Repository implementation evidence.** `src/leaderboard/pdl/__init__.py` calls the PDL package a prototype. The repository includes `flatten_runs`, `aggregate_metric_scores`, `build_pairwise_dataset`, and the diagnostic script `train_pairwise_classifier.py`. The default metrics are `mse` and `spearman`.
 
 **Partial. Repository implementation evidence.** Pair context and output columns are defined by `PAIR_CONTEXT_COLUMNS` and the dataset builder columns around lines 148 to 164. Labels are `1` when method A beats method B under `METRIC_SPECS[metric].higher_is_better`. Ties and nonfinite values are skipped.
