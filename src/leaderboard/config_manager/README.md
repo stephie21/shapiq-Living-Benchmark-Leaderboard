@@ -59,10 +59,10 @@ dictionary:
 
 Benchmark evaluation can trigger combinatorial explosions. The config manager acts as a circuit breaker:
 
-* **Dimension Guard**: Blocks `ExactComputer` for games where $n > 14$ to prevent memory/CPU exhaustion (
-  evaluating $2^{15}$ permutations takes too long).
+* **Dimension Guard**: Blocks `ExactComputer` for games where $n > 14$ to prevent memory/CPU exhaustion and
+  combinatorial explosion, as evaluating $2^{15}$ permutations triggers critical hardware starvation.
 * **Upstream Bug Mitigation**: Intercepts `TreeExplainer` requests for `STII`, `FSII`, and `FBII` indices, as
-  `shapiq v0.x` contains known matrix broadcasting bugs for these combinations.
+  `shapiq v1.5.0` contains known matrix broadcasting bugs for these combinations.
 
 ### 3. Intelligent Cross-Validation
 
@@ -78,6 +78,7 @@ Benchmark evaluation can trigger combinatorial explosions. The config manager ac
   modifying the sets and dicts inside `constants.py`. The Pydantic validators will dynamically adapt to the new
   whitelists.
 
+---
 
 ## 🛠️ Extending the Benchmark Ecosystem
 
@@ -144,7 +145,7 @@ Now that the game exists in the underlying library, you must whitelist it for th
    
    <img width="521" height="114" alt="Screenshot 2026-07-17 at 14 52 43" src="https://github.com/user-attachments/assets/2eabcc4e-6e03-406d-80a4-dc4c911fc2c3" />
 
-9. **Define Dimensionality (CRITICAL)**: You MUST hardcode the exact feature dimension size inside the
+8. **Define Dimensionality (CRITICAL)**: You MUST hardcode the exact feature dimension size inside the
    `GAME_PLAYER_COUNTS` dictionary:
 
 <img width="374" height="120" alt="Screenshot 2026-07-17 at 14 53 23" src="https://github.com/user-attachments/assets/76707d9b-c308-4508-97fd-a24813c037be" />
