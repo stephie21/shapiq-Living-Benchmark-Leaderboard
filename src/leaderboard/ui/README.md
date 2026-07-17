@@ -127,4 +127,4 @@ Displays this documentation.
 ## Methodology
 
 For details on the ELO and Critical Difference scoring methods, see the
-[Scoring Manual](../scoring/scoring_manual.md).
+[Scoring README](../scoring/README.md).
