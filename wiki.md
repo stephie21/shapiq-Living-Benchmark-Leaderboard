@@ -1,5 +1,7 @@
 # shapiq Living Benchmark Leaderboard Wiki
 
+Our leaderboard is also available on HuggingFace Spaces! Check it out: [Leaderboard](https://huggingface.co/spaces/JJ248/shapiq-leaderboard)
+
 ## Purpose of the leaderboard
 
 The Living Benchmark Leaderboard primarily serves as a support tool for users of SHAPIQ. Its goal is to help users identify suitable approximators for a selected benchmark context. Users can filter the available benchmark data by game, interaction index, budget, and metric. Internally, these variables are used to define comparable groups within which approximators can be evaluated against one another.
