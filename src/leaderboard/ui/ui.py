@@ -277,7 +277,7 @@ def get_plot_single(
     return get_plot(df_agg, selected_game, metric, [approximator], yaxis_range)
 
 
-def _with_spinner(message: str, fn: Callable[[], T]) -> T:  # noqa: UP047
+def _with_spinner(message: str, fn: Callable[[], T]) -> T:
     """Run *fn* while showing an animated terminal spinner.
 
     Args:
