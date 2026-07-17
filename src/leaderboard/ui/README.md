@@ -124,23 +124,7 @@ Displays this documentation.
 
 ---
 
-## Methodology notes
+## Methodology
 
-### ELO scoring
-
-Within each comparable group (same game, index, max order, budget, and ground-truth method), every pair of approximators is matched on each metric. The ELO update uses:
-
-- Initial ELO: 1 000
-- K-factor: 16
-- Tie tolerance: 0 (exact ties only)
-- Seeds are averaged within each comparable group before comparison
-
-Bootstrap resampling (200 samples, 10 permutations each) is used to stabilize ratings and derive 95 % confidence intervals;
-configurable via the Bootstrap Samples and Permutations controls in the ELO tab
-
-
-### Critical Difference analysis
-
-Approximators are ranked per comparable group (same game, index, max order, budget, ground-truth method, and approximator seed) and metric. Friedman's test checks whether any ranking differences are significant overall. If significant, Nemenyi's post-hoc test identifies which pairs differ — those that do *not* differ significantly are shown as connected cliques in the CD diagram.
-
-Reference: Demšar, J. (2006). Statistical comparisons of classifiers over multiple data sets. *Journal of Machine Learning Research*, 7, 1–30.
+For details on the ELO and Critical Difference scoring methods, see the
+[Scoring Manual](../scoring/scoring_manual.md).
