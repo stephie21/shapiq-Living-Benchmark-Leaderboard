@@ -85,7 +85,23 @@ ELO_N_PERMUTATIONS = 10
 
 @dataclass
 class InitialData:
-    """Data container for leaderboard UI."""
+    """Data container for the initial leaderboard UI build.
+
+    Attributes:
+        df_agg: Aggregated DataFrame with one row per (approximator, game, budget).
+        raw_records: All raw benchmark records as returned by the database client.
+        db_client: Active database client instance.
+        all_games: Sorted distinct game names.
+        all_approxs: Sorted distinct approximator names.
+        all_budgets: Sorted distinct budget values.
+        all_indices: Sorted distinct interaction index names.
+        default_index: Default index selection (``"SV"`` if available, else first).
+        all_n_players: Sorted distinct player counts.
+        all_max_orders: Sorted distinct max order values.
+        all_gt_methods: Sorted distinct ground truth method names.
+        all_seeds: Sorted distinct approximator seed values.
+        available_metrics: Metric names present in *df_agg* (subset of ``METRICS``).
+    """
 
     df_agg: pd.DataFrame
     raw_records: list[dict[str, Any]]
@@ -135,7 +151,7 @@ def load_and_aggregate(method: str = "mongodb", path: str | Path = RESULTS_PATH)
     """Load raw run records from the specified backend and return an aggregated DataFrame.
 
     Args:
-        method: Database backend identifier (``"mongodb"`` or ``"local"``).
+        method: Database backend identifier (``"mongodb"``, ``"local"``, or ``"huggingface"``).
         path: Path to the local JSONL file; only used when *method* is ``"local"``.
 
     Returns:
@@ -287,13 +303,13 @@ def _with_spinner(message: str, fn: Callable[[], T]) -> T:
     Returns:
         Whatever *fn* returns.
     """
-    SPINNER = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"]
+    spinner = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"]
     done = threading.Event()
 
     def spin() -> None:
         i = 0
         while not done.is_set():
-            print(f"\r{SPINNER[i % len(SPINNER)]}  {message}", end="", flush=True)  # noqa: T201
+            print(f"\r{spinner[i % len(spinner)]}  {message}", end="", flush=True)  # noqa: T201
             i += 1
             done.wait(0.1)
         print(f"\r✓  {message}")  # noqa: T201
@@ -318,6 +334,9 @@ def load_initial_data() -> InitialData:
 
     Raises:
         DBConnectionError: If the database connection test fails.
+
+    Note:
+        Populates the module-level ``GLOBAL_APPROX_STYLES`` dict as a side effect via :func:`update_global_styles`.
     """
     db_client = DatabaseClientFactory.create_client(
         LOADING_METHOD,
@@ -352,7 +371,7 @@ def load_initial_data() -> InitialData:
         )
     )
 
-    _with_spinner("Computing global styles...", lambda: update_global_styles(df_agg) or True)
+    update_global_styles(df_agg)
 
     available_metrics = [m for m in METRICS if f"{m}_mean" in df_agg.columns]
 
@@ -569,12 +588,12 @@ def compute_elo_for_bucket_worker(
     Designed to be called from a :class:`~concurrent.futures.ProcessPoolExecutor`.
 
     Args:
-        args: Tuple of ``(bucket_records, budget, metric, index, game, approx_styles)``
-            as produced by :func:`compute_all_elo_buckets_parallel`.
+        args: Tuple of ``(bucket_records, budget, metric, index, game, approx_styles,
+            n_bootstrap_samples, n_permutations)`` as produced by :func:`compute_all_elo_buckets_parallel`.
 
     Returns:
         ``(budget, table_df, fig, info_md)`` — budget is passed through so
-        results can be matched to their bucket after parallel execution.
+            results can be matched to their bucket after parallel execution.
     """
     bucket_records, budget, metric, index, game, approx_styles, n_bs, n_perm = args
     table_df, fig, info_md = compute_elo_for_bucket(
@@ -1852,12 +1871,9 @@ def build_app() -> gr.Blocks:
 
 def main() -> None:
     """Build and launch the Gradio leaderboard app."""
-    start = perf_counter()
     print("\n🚀 Starting shapiq Leaderboard...\n")  # noqa: T201
     demo = build_app()
     print("\n✨ Ready!\n")  # noqa: T201
-    elapsed = perf_counter() - start
-    print(f"Startup time: {elapsed:.4f}s")  # noqa: T201
     demo.launch()
 
 
