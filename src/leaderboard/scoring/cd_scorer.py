@@ -13,9 +13,8 @@ from statistics import mean
 from typing import TYPE_CHECKING
 
 import numpy as np
-from scipy import stats
-
 import plotly.graph_objects as go
+from scipy import stats
 
 from leaderboard.metrics.registry import METRIC_ALIASES, METRIC_SPECS
 from leaderboard.scoring import LeaderboardScorer, ScoringResult
@@ -919,7 +918,6 @@ class CriticalDifferenceScorer(LeaderboardScorer):
         Returns:
             A ``plotly.graph_objects.Figure``.
         """
-
         mean_ranks = cd_result.mean_ranks
         if len(mean_ranks) < 2:
             fig = go.Figure()
@@ -935,8 +933,12 @@ class CriticalDifferenceScorer(LeaderboardScorer):
         right_names = list(reversed(approx_list[half:]))
 
         row_spacing = 1.0
-        left_rows: dict[str, float] = {name: row_spacing * (i + 1) for i, name in enumerate(left_names)}
-        right_rows: dict[str, float] = {name: row_spacing * (i + 1) for i, name in enumerate(right_names)}
+        left_rows: dict[str, float] = {
+            name: row_spacing * (i + 1) for i, name in enumerate(left_names)
+        }
+        right_rows: dict[str, float] = {
+            name: row_spacing * (i + 1) for i, name in enumerate(right_names)
+        }
         max_row_y = row_spacing * max(len(left_names), len(right_names))
 
         axis_y = 0.0
@@ -946,39 +948,78 @@ class CriticalDifferenceScorer(LeaderboardScorer):
         traces: list[go.BaseTraceType] = []
 
         # ── Rank axis ──────────────────────────────────────────────────────────
-        shapes.append(dict(type="line", x0=1, x1=n, y0=axis_y, y1=axis_y,
-                           line=dict(color="black", width=1.5)))
+        shapes.append(
+            dict(type="line", x0=1, x1=n, y0=axis_y, y1=axis_y, line=dict(color="black", width=1.5))
+        )
         for tick in range(1, n + 1):
-            shapes.append(dict(type="line", x0=tick, x1=tick,
-                               y0=axis_y - 0.06, y1=axis_y + 0.06,
-                               line=dict(color="black", width=1)))
-            annotations.append(dict(x=tick, y=axis_y - 0.18, text=str(tick),
-                                    showarrow=False, font=dict(size=11),
-                                    xanchor="center", yanchor="top"))
+            shapes.append(
+                dict(
+                    type="line",
+                    x0=tick,
+                    x1=tick,
+                    y0=axis_y - 0.06,
+                    y1=axis_y + 0.06,
+                    line=dict(color="black", width=1),
+                )
+            )
+            annotations.append(
+                dict(
+                    x=tick,
+                    y=axis_y - 0.18,
+                    text=str(tick),
+                    showarrow=False,
+                    font=dict(size=11),
+                    xanchor="center",
+                    yanchor="top",
+                )
+            )
 
         # ── CD reference bar ───────────────────────────────────────────────────
-        shapes.append(dict(type="line", x0=1, x1=1 + cd, y0=cd_y, y1=cd_y,
-                           line=dict(color="black", width=2)))
+        shapes.append(
+            dict(type="line", x0=1, x1=1 + cd, y0=cd_y, y1=cd_y, line=dict(color="black", width=2))
+        )
         for x_end in [1, 1 + cd]:
-            shapes.append(dict(type="line", x0=x_end, x1=x_end,
-                               y0=cd_y - 0.08, y1=cd_y + 0.08,
-                               line=dict(color="black", width=1.5)))
-        annotations.append(dict(x=1, y=cd_y + 0.18,
-                                 text=f"CD = {cd:.3f}",
-                                 showarrow=False, font=dict(size=11),
-                                 xanchor="left", yanchor="bottom"))
+            shapes.append(
+                dict(
+                    type="line",
+                    x0=x_end,
+                    x1=x_end,
+                    y0=cd_y - 0.08,
+                    y1=cd_y + 0.08,
+                    line=dict(color="black", width=1.5),
+                )
+            )
+        annotations.append(
+            dict(
+                x=1,
+                y=cd_y + 0.18,
+                text=f"CD = {cd:.3f}",
+                showarrow=False,
+                font=dict(size=11),
+                xanchor="left",
+                yanchor="bottom",
+            )
+        )
 
         # ── Clique crossbars ───────────────────────────────────────────────────
         n_cliques = len(cd_result.cliques)
         clique_spacing = 0.2 if n_cliques else 0
         clique_y = 0.15
-        for clique in sorted(cd_result.cliques,
-                             key=lambda c: max(mean_ranks[a] for a in c) - min(mean_ranks[a] for a in c)):
+        for clique in sorted(
+            cd_result.cliques,
+            key=lambda c: max(mean_ranks[a] for a in c) - min(mean_ranks[a] for a in c),
+        ):
             ranks = [mean_ranks[a] for a in clique]
-            shapes.append(dict(type="line",
-                               x0=min(ranks), x1=max(ranks),
-                               y0=clique_y, y1=clique_y,
-                               line=dict(color="black", width=4)))
+            shapes.append(
+                dict(
+                    type="line",
+                    x0=min(ranks),
+                    x1=max(ranks),
+                    y0=clique_y,
+                    y1=clique_y,
+                    line=dict(color="black", width=4),
+                )
+            )
             clique_y += clique_spacing
 
         # ── Elbow lines + labels ───────────────────────────────────────────────
@@ -989,18 +1030,38 @@ class CriticalDifferenceScorer(LeaderboardScorer):
             rank = mean_ranks[name]
             label = f"{name} ({mean_ranks[name]:.2f})"
             # dot on axis
-            traces.append(go.Scatter(x=[rank], y=[axis_y], mode="markers",
-                                     marker=dict(color="black", size=5),
-                                     showlegend=False, hoverinfo="skip"))
+            traces.append(
+                go.Scatter(
+                    x=[rank],
+                    y=[axis_y],
+                    mode="markers",
+                    marker=dict(color="black", size=5),
+                    showlegend=False,
+                    hoverinfo="skip",
+                )
+            )
             # elbow: vertical up, then horizontal to margin
-            traces.append(go.Scatter(x=[rank, rank, label_x],
-                                     y=[axis_y, row_y, row_y],
-                                     mode="lines",
-                                     line=dict(color="black", width=0.8),
-                                     showlegend=False, hoverinfo="skip"))
-            annotations.append(dict(x=label_x, y=row_y, text=label,
-                                    showarrow=False, font=dict(size=10),
-                                    xanchor=anchor, yanchor="middle"))
+            traces.append(
+                go.Scatter(
+                    x=[rank, rank, label_x],
+                    y=[axis_y, row_y, row_y],
+                    mode="lines",
+                    line=dict(color="black", width=0.8),
+                    showlegend=False,
+                    hoverinfo="skip",
+                )
+            )
+            annotations.append(
+                dict(
+                    x=label_x,
+                    y=row_y,
+                    text=label,
+                    showarrow=False,
+                    font=dict(size=10),
+                    xanchor=anchor,
+                    yanchor="middle",
+                )
+            )
 
         for name in left_names:
             _draw_elbow(name, left_rows[name], left_x, "right")
@@ -1031,8 +1092,13 @@ class CriticalDifferenceScorer(LeaderboardScorer):
             height=max(350, 150 + max(len(left_names), len(right_names)) * 40 + n_cliques * 20),
         )
         fig.add_annotation(
-            text=friedman_info, xref="paper", yref="paper",
-            x=0.5, y=-0.08, showarrow=False,
-            font=dict(size=9, color="gray"), xanchor="center",
+            text=friedman_info,
+            xref="paper",
+            yref="paper",
+            x=0.5,
+            y=-0.08,
+            showarrow=False,
+            font=dict(size=9, color="gray"),
+            xanchor="center",
         )
         return fig

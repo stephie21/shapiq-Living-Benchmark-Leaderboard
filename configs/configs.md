@@ -20,12 +20,12 @@ specific computational budgets assigned for our ongoing benchmark evaluations.
 | **Soybean**             |      35       | Local XAI      | `SV`, `SII`, `k-SII`                                       | 250, 500, 1000, 5000, 10000 | 8            |
 | **Splice**              |      60       | Local XAI      | `SV`, `SII`, `k-SII`                                       | 250, 500, 1000, 5000, 10000 | 10           |
 | **TaiwaneseBankruptcy** |      94       | Local XAI      | `SV`, `SII`, `k-SII`                                       | 250, 500, 1000, 5000, 10000 | 10           |
-| **Arrhythmia**          |      279      | Local XAI      | `SV`                                                       | 1000, 5000, 10000           | 5*           |
-| **Arrhythmia**          |      279      | Local XAI      | `SII` (fallback `k-SII`)                                   | 500, 1000, 5000             | 10**         |
+| **Arrhythmia**          |      279      | Local XAI      | `SV`                                                       | 1000, 5000, 10000           | 5            |
+| **Arrhythmia**          |      279      | Local XAI      | `SII`                                                      | 500, 1000, 5000             | 10           |
 | **ImageClassifier**     |       9       | Local XAI      | `SV`                                                       | 250, 500                    | 3            |
-| **ImageClassifier**     |       9       | Local XAI      | `k-SII` (fallback `SII`, `STII`)                           | 100, 200, 400               | 4***         |
+| **ImageClassifier**     |       9       | Local XAI      | `k-SII`                                                    | 100, 200, 400               | 4            |
 
-### ⚠️ Special Execution Notes & Hardware Stress Tests
+### Special Execution Notes & Hardware Stress Tests
 
 1. **Arrhythmia Extreme Dimensionality ($n=279$)**:
     * Due to the massive feature space, this dataset requires execution on a secondary high-performance workstation.
@@ -61,7 +61,11 @@ The repository provides ready-to-use templates tailored to specific data modalit
 
 ### Step 2: Clone the Configuration
 
-Clone your chosen template to create your active run file. The runner defaults to looking for `default_run.yaml`.
+Clone your chosen template to create your active run file. The runner defaults to looking for **default_run.yaml**.
+Alternatively, you can copy or reference ready-to-use configuration files from existing game directories. For example,
+you can use the predefined YAML files located inside the Soybean n = 35 folder, such as SV_Soybean n = 35.yaml,
+SII_Soybean n = 35.yaml, or k-SII_Soybean n = 35.yaml. You can clone these files via the command line, or simply open
+them in your IDE and manually copy and paste the YAML content directly into your default_run.yaml.
 
 ```bash
 cp configs/template_tabular.yaml configs/default_run.yaml
@@ -73,13 +77,18 @@ cp configs/template_tabular.yaml configs/default_run.yaml
 Modify `default_run.yaml` according to your experimental parameters. Pass it to the runner script:
 
 ```bash
-python src/leaderboard/runner/runner_with_config_demo.py configs/default_run.yaml
+python src/leaderboard/runner/runner_with_config.py configs/default_run.yaml
 
 ```
 
-*Note: If your configuration contains illegal values, mismatched algorithmic combinations, or unachievable budgets, the
-system will immediately intercept the execution and display a formatted red boundary
-box (`💥 CRITICAL CONFIGURATION ERROR`) detailing exactly how to fix the issue.*
+Note:
+
+* The system employs a two-tier validation process. Severe structural errors (such as completely missing mandatory
+  fields like budgets) will immediately intercept the execution and display a formatted red boundary box (💥 CRITICAL
+  CONFIGURATION ERROR) detailing how to fix the issue.
+* However, recoverable logic issues, such as unachievable budgets (
+  e.g., exceeding $2^n$) or unsupported approximators—are handled by the "Silent Purge" mechanism. The system will
+  automatically filter these invalid entries out and continue executing the remaining valid configurations.
 
 ### Configuration Flow Diagram
 
@@ -96,7 +105,9 @@ box (`💥 CRITICAL CONFIGURATION ERROR`) detailing exactly how to fix the issue
                                         V  - Auto-purges irrelevant parameters
 ```
 
-## 🗂️ Exhaustive Parameter Dictionary & `shapiq` Mapping
+---
+
+## Parameter Dictionary & `shapiq` Mapping
 
 Every parameter defined in the YAML configuration files maps directly to the underlying `shapiq` library's evaluation
 functions.
@@ -159,8 +170,12 @@ not belong to the active `game_family`)*.
 
 **Visual Game Exclusive Parameters:**
 
-* **`x_explain_path`** *(String)*: The relative or absolute file path to the target image. This parameter is mandatory
+* **`x_explain_path`** *(String)*: The relative or absolute file path (`src/shapiq_games/benchmark/imagenet_examples`)
+  to
+  the target image. This parameter is mandatory
   for the `ImageClassifier` game.
+* **`n_superpixel_resnet`** *(Integer)*: Configuration for ResNet-18 superpixel grouping (only active if model_name is "
+  resnet_18").
 
 ### 3. Ground Truth Computation Strategies (`ground_truth`)
 
@@ -182,20 +197,20 @@ Dictates how the absolute true values are derived against which approximators ar
 
 These parameters accept lists and instruct the runner on how many iterations to sweep.
 
-* **`approximators`** *(List[String])* : The sampling or regression algorithms you wish to benchmark (e.g.,
+* **`approximators`** *(List [String] )* : The sampling or regression algorithms you wish to benchmark (e.g.,
   `["OwenSamplingSV", "KernelSHAPIQ"]`).
 * *Validation Rule*: The system verifies that the algorithms requested are officially registered in
   `shapiq.approximator` AND that they mathematically support your chosen `index`. Incompatible algorithms are
   automatically purged from the run list.
 
 
-* **`budgets`** *(List[Integer])* : The exact number of black-box model evaluations allowed per algorithm.
+* **`budgets`** *(List [Integer] )* : The exact number of black-box model evaluations allowed per algorithm.
 * *Validation Rule*: Budgets (e.g., `[0, 1, 2, 3,...,29]`)must strictly satisfy the boundary
   condition: $n+1 \le \text{budget} < 2^n$. Out-of-bounds
   budgets are automatically removed to prevent algorithmic crashing.
 
 
-* **`seeds`** *(List[Integer])* : Random seeds (e.g., `[250, 500, 1000, 5000,10000]`) utilized to stabilize variance
+* **`seeds`** *(List [Integer] )* : Random seeds (e.g., `[250, 500, 1000, 5000,10000]`) utilized to stabilize variance
   across stochastic sampling-based approximators.
 
 ---
@@ -208,27 +223,22 @@ the central registries.
 
 ### Registering a New Game (Dataset)
 
-To introduce a new dataset to the leaderboard ecosystem:
+To introduce a new dataset to the leaderboard ecosystem—whether it is already available in the `shapiq` dataset module
+or a custom one from the web:
 
-1. **Ensure DataLoader Exists**: Verify that your data processing function is fully implemented and exposed in the
-   `shapiq_games.datasets` module.
-2. **Update the Single Source of Truth**: Open `src/leaderboard/config_manager/constants.py`.
-3. **Bind to Registry**: Add the game class to the `LOCAL_GAME_REGISTRY` or `GLOBAL_GAME_REGISTRY` dictionary.
-4. **Define Dimensionality (CRITICAL)**: You MUST append the exact feature dimension size (e.g., `"MyNewDataset": 45`)
-   inside the `GAME_PLAYER_COUNTS` dictionary. The system relies on this value to perform budget boundary validations
-   and Out-Of-Memory guards.
-5. **Task Classification**: If your new dataset is a Regression task (predicting continuous values rather than classes),
-   you MUST append its string name to the `REGRESSION_GAMES` set to activate the loss-function cross-validation locks.
+1. **Implement & Register in Config Manager**: First, follow the step-by-step code modification guide in the
+   `config_manager` README to set up the data loader, dimensions, and task types.
+2. **Expose the Game Name**: Open `src/leaderboard/config_manager/constants.py` and simply add your new game's string
+   identifier to the designated game registry list.
 
 ### Registering a New Approximator (Algorithm)
 
 To add a new sampling or proxy algorithm to the benchmark comparison:
 
-1. **Verify Upstream Integration**: Ensure the algorithm class is available in `shapiq.approximator` and is correctly
-   registered in its respective compatibility list (e.g., `SV_APPROXIMATORS`).
-2. **Update the Whitelist**: Open `src/leaderboard/config_manager/constants.py`.
-3. **Append Name**: Add the precise, case-sensitive class name of your algorithm to the `ALL_SUPPORTED_APPROXIMATORS`
-   list.
+1. **Verify Upstream Integration**: Ensure the algorithm class is fully integrated into `shapiq.approximator` and
+   documented in the `config_manager` workflow.
+2. **Append Approximator Name**: Open `src/leaderboard/config_manager/constants.py` and add the precise, case-sensitive
+   class name of your algorithm to the supported whitelist.
 
-Once registered in the constants file, the Pydantic validator will immediately recognize it as a legitimate input,
+Once the name is added here, the central Pydantic validators will immediately recognize it as a legitimate input,
 allowing you to invoke it directly via the `approximators` list in your `default_run.yaml` files.

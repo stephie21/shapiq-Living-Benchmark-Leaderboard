@@ -234,7 +234,7 @@ def main() -> None:
         local_db.insert_many(benchmark_result["raw_results"])
 
         # Insert in MongoDB
-        # mongo_db.insert_many(benchmark_result["raw_results"])
+        mongo_db.insert_many(benchmark_result["raw_results"])
 
         logger.info("Stored raw results:")
         logger.info(len(benchmark_result["raw_results"]))
