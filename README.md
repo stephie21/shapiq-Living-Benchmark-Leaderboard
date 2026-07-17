@@ -44,4 +44,3 @@ For more detailed information about the individual components, see the package-s
 - [UI](https://github.com/stephie21/shapiq-Living-Benchmark-Leaderboard/tree/main/src/leaderboard/ui/README.md)
 - [PDL](https://github.com/stephie21/shapiq-Living-Benchmark-Leaderboard/blob/main/src/leaderboard/pdl/README.md)
 - [Deployment](https://github.com/stephie21/shapiq-Living-Benchmark-Leaderboard/blob/main/src/leaderboard/deployment.md)
-
