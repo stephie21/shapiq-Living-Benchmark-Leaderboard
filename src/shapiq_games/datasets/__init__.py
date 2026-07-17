@@ -12,6 +12,8 @@ from ._all import (
     load_mushroom,
     load_nursery,
     load_soybean,
+    load_splice,
+    load_taiwanese_bankruptcy,
     load_thyroid,
     load_zoo,
 )
@@ -30,4 +32,6 @@ __all__ = [
     "load_soybean",
     "load_thyroid",
     "load_zoo",
+    "load_splice",
+    "load_taiwanese_bankruptcy",
 ]

@@ -15,7 +15,7 @@ Available storage options for the leaderboard data include:
 - **HuggingFace Datasets**: Use the HuggingFace Datasets library to store and manage the leaderboard data. This is suitable for production use and is especially useful when a stable and cleaned version of the leaderboard data is required.
 
 
-In order to configure the storage, please set the `LOADING_METHOD` global variable to the preferred storage option in the [leaderboard ui implementation](./ui/ui.py#L55). 
+In order to configure the storage, please set the `LOADING_METHOD` global variable to the preferred storage option in the [leaderboard ui implementation](./ui/ui.py#L55).
 
 
 Each storage option requires specific configuration steps, which are detailed in the [Storage Module README](./storage/README.md). Parameter reminder (to be configured in the `.env` file):
@@ -48,7 +48,7 @@ From `src` directory
 python3 -m leaderboard.ui.ui
 ```
 
-OR 
+OR
 
 From project root:
 ```bash
@@ -58,7 +58,7 @@ python3 app.py
 For local deployment, with public access as provided by `Gradio`, please first set in the Pyhton [leaderboard ui implementation](./ui/ui.py#L1684) the `share` parameter to `True` in the `demo.launch()` function, as shown below:
 
 ```python
-demo.launch(ssr_mode=False, share=True) 
+demo.launch(ssr_mode=False, share=True)
 ```
 
 ### HuggingFace Spaces Deployment
@@ -90,4 +90,3 @@ pinned: false
 The GitHub Action workflow file (`huggingface-spaces.yml`) is configured to:
 - Check out the repository code.
 - Copy the repository code to the HuggingFace Space - includes only code files (restriction placed on larger files by GitHub and HuggingFace).
-

@@ -1,7 +1,7 @@
-game: "Arrhythmia"
-game_family: "local_xai"
-index: "SV"
-max_order: 1
+game: "AdultCensus"
+game_family: "global_xai"
+index: "k-SII"
+max_order: 2
 
 game_params:
   # --- Universal Game Control ---
@@ -17,7 +17,7 @@ game_params:
   # === Global XAI Game Setup (Active only when game_family: "global_xai") ===
   # Note: For classification games (e.g., "AdultCensus"), use "accuracy_score" or "cross_entropy".
   # For regression games (e.g., "BikeSharing", "CaliforniaHousing"), use "mean_absolute_error" or "mean_squared_error".
-  loss_function: "mean_absolute_error"
+  loss_function: "accuracy_score"
   n_samples_eval: 10               # Number of background rows sampled per coalition to shuffle missing features.
   n_samples_empty: 200             # Background dataset sample size used to calculate the base empty-set loss value.
 
@@ -28,16 +28,14 @@ game_params:
 
 ground_truth:
   strategy: "compute"
-  method: "TreeExplainer"
+  method: "ExactComputer"
 
 approximators:
-  - "OwenSamplingSV"
-  - "StratifiedSamplingSV"
-  - "SVARM"
-  - "UnbiasedKernelSHAP"
-  - "PermutationSamplingSV"
-  - "KernelSHAP"
-  - "kADDSHAP"
+  - "PermutationSamplingSII"
+  - "KernelSHAPIQ"
+  - "InconsistentKernelSHAPIQ"
+  - "SVARMIQ"
+  - "SHAPIQ"
   - "ProxySPEX"
   - "ProxySHAP"
 

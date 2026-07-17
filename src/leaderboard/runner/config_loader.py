@@ -105,6 +105,6 @@ def expand_config(config: dict[str, Any]) -> list[dict[str, Any]]:
         for budget in budgets
     ]
 
-    logger.info("Expanded configuration into %d run configs", len(run_configs))
+    # logger.info("Expanded configuration into %d run configs", len(run_configs))
 
     return run_configs
