@@ -392,6 +392,8 @@ def compute_elo_for_bucket(
         index: Interaction index to filter by (e.g. "SV"). Use "all" to include all indices.
         game: Game name to filter by. Use "all" to include all games.
         approx_styles: Optional per-approximator style dict mapping names to ``{"color": ..., "dash": ...}``; falls back to ``GLOBAL_APPROX_STYLES``.
+        n_bootstrap_samples: Number of bootstrap samples for CI estimation.
+        n_permutations: Number of ELO permutations per bootstrap sample.
 
     Returns:
         A tuple of (leaderboard DataFrame, Plotly bar chart Figure, info markdown string).
@@ -472,35 +474,46 @@ def compute_elo_for_bucket(
             marker={"color": bar_colors},
             text=[f"{s:.1f}" for s in elo_scores],
             textposition="outside",
-            hovertemplate="<b>%{x}</b><br>ELO: %{y:.1f}<extra></extra>" if game != "all" else "<b>%{x}</b><br>ELO: %{y:.1f}<br>95% CI: [%{customdata[0]:.1f}, %{customdata[1]:.1f}]<extra></extra>",
+            hovertemplate="<b>%{x}</b><br>ELO: %{y:.1f}<extra></extra>"
+            if game != "all"
+            else "<b>%{x}</b><br>ELO: %{y:.1f}<br>95% CI: [%{customdata[0]:.1f}, %{customdata[1]:.1f}]<extra></extra>",
             customdata=list(zip(ci_lower, ci_upper, strict=False)),
         )
     )
 
-    shapes = [] if game != "all" else (
-        [
-            # Confidence interval band
-            {
-                "type": "rect",
-                "x0": i - 0.4,
-                "x1": i + 0.4,
-                "y0": low,
-                "y1": high,
-                "fillcolor": color,
-                "opacity": 0.25,
-                "line": {"width": 0},
-            }
-            for i, (low, high, color) in enumerate(zip(ci_lower, ci_upper, bar_colors, strict=False))
-        ] + [
-            # Lower confidence interval boundary line
-            {
-                "type": "line",
-                "x0": i - 0.4, "x1": i + 0.4,
-                "y0": low, "y1": low,
-                "line": {"color": "rgba(80,80,80,0.6)", "width": 2},
-            }
-            for i, low in enumerate(ci_lower)
-        ]
+    shapes = (
+        []
+        if game != "all"
+        else (
+            [
+                # Confidence interval band
+                {
+                    "type": "rect",
+                    "x0": i - 0.4,
+                    "x1": i + 0.4,
+                    "y0": low,
+                    "y1": high,
+                    "fillcolor": color,
+                    "opacity": 0.25,
+                    "line": {"width": 0},
+                }
+                for i, (low, high, color) in enumerate(
+                    zip(ci_lower, ci_upper, bar_colors, strict=False)
+                )
+            ]
+            + [
+                # Lower confidence interval boundary line
+                {
+                    "type": "line",
+                    "x0": i - 0.4,
+                    "x1": i + 0.4,
+                    "y0": low,
+                    "y1": low,
+                    "line": {"color": "rgba(80,80,80,0.6)", "width": 2},
+                }
+                for i, low in enumerate(ci_lower)
+            ]
+        )
     )
 
     y_min = min(elo_scores) - 20 if elo_scores else 950
@@ -530,10 +543,16 @@ def compute_elo_for_bucket(
     info_md = (
         f"Metric: **{metric_label}** | Index: **{index_label}** | Game: **{game if game != 'all' else 'all'}** | "
         f"Bootstrap samples: **{n_bs}** | Permutations: **{n_perm}**"
-        + (" | ⚠️ ELO and CD rankings may diverge when aggregating over multiple indices and/or multiple games."
-           if index_label == "all" or game_label == "all" else "")
-        + (" | ⚠️ Confidence intervals are not meaningful with only one comparable group (single game selected)."
-           if n_groups <= 1 else "")
+        + (
+            " | ⚠️ ELO and CD rankings may diverge when aggregating over multiple indices and/or multiple games."
+            if index_label == "all" or game_label == "all"
+            else ""
+        )
+        + (
+            " | ⚠️ Confidence intervals are not meaningful with only one comparable group (single game selected)."
+            if n_groups <= 1
+            else ""
+        )
     )
 
     return leaderboard_df, fig, info_md
@@ -563,7 +582,7 @@ def compute_elo_for_bucket_worker(
         game,
         approx_styles,
         n_bootstrap_samples=n_bs,
-        n_permutations=n_perm
+        n_permutations=n_perm,
     )
     return budget, table_df, fig, info_md
 
@@ -585,6 +604,8 @@ def compute_all_elo_buckets_parallel(
         metric: Metric to score by; ``"all"`` includes every metric.
         index: Interaction index to filter by; ``"all"`` includes all.
         game: Game name to filter by; ``"all"`` includes all games.
+        n_bootstrap_samples: Number of bootstrap samples for CI estimation.
+        n_permutations: Number of ELO permutations per bootstrap sample.
 
     Returns:
         Flat tuple ``(info_md, table_0, fig_0, table_1, fig_1, …)`` — one
@@ -601,8 +622,18 @@ def compute_all_elo_buckets_parallel(
     for bucket in BUDGET_BUCKETS:
         budget_value = int(bucket["budget"])
         bucket_records = [record for record in filtered if record.get("budget") == budget_value]
-        tasks.append((bucket_records, budget_value, metric, index, game, approx_styles,
-                      n_bootstrap_samples, n_permutations))
+        tasks.append(
+            (
+                bucket_records,
+                budget_value,
+                metric,
+                index,
+                game,
+                approx_styles,
+                n_bootstrap_samples,
+                n_permutations,
+            )
+        )
 
     max_workers = min(len(tasks), 6)
 
@@ -646,8 +677,12 @@ def compute_cd_for_bucket(
         indices=[str(index)] if index != "all" else None,
         game_names=[str(game)] if game != "all" else None,
         group_keys=[
-            "game_name", "index", "max_order", "budget",
-            "ground_truth_method", "approx_seed",
+            "game_name",
+            "index",
+            "max_order",
+            "budget",
+            "ground_truth_method",
+            "approx_seed",
         ],
     )
     result = scorer.score(df_raw_records)
@@ -850,8 +885,12 @@ def build_app() -> gr.Blocks:
                         </div>
                     </div>
                 """)
-                elo_jump_btn = gr.Button("🔍 Open in Detailed Data Tab", variant="secondary", scale=0,
-                                         elem_classes=["elo-jump-btn"])
+                elo_jump_btn = gr.Button(
+                    "🔍 Open in Detailed Data Tab",
+                    variant="secondary",
+                    scale=0,
+                    elem_classes=["elo-jump-btn"],
+                )
 
             elo_metric_filter = gr.Dropdown(
                 choices=["all", *available_metrics],
@@ -940,7 +979,9 @@ def build_app() -> gr.Blocks:
             _elo_init_cd_figs = _with_spinner(
                 "Computing CD diagrams for all budget buckets...",
                 lambda: {
-                    i: compute_cd_for_bucket(raw_records, int(BUDGET_BUCKETS[i]["budget"]), "all", _default_index)
+                    i: compute_cd_for_bucket(
+                        raw_records, int(BUDGET_BUCKETS[i]["budget"]), "all", _default_index
+                    )
                     for i in range(len(BUDGET_BUCKETS))
                 },
             )
@@ -991,6 +1032,8 @@ def build_app() -> gr.Blocks:
                     metric: Metric to score by; ``"all"`` includes every metric.
                     index: Interaction index to filter by (e.g. "SV"). Use "all" to include all indices.
                     game: Game name to filter by. Use "all" to include all games.
+                    n_bootstrap_samples: Number of bootstrap samples for CI estimation.
+                    n_permutations: Number of ELO permutations per bootstrap sample.
 
                 Returns:
                     Tuple of (bucket label markdown, leaderboard DataFrame,
@@ -1002,7 +1045,12 @@ def build_app() -> gr.Blocks:
                 ]
                 budget = int(bucket["budget"])
                 table_df, fig, info_md = compute_elo_for_bucket(
-                    filtered, budget, metric, index, game, GLOBAL_APPROX_STYLES.copy(),
+                    filtered,
+                    budget,
+                    metric,
+                    index,
+                    game,
+                    GLOBAL_APPROX_STYLES.copy(),
                     n_bootstrap_samples=n_bootstrap_samples,
                     n_permutations=n_permutations,
                 )
@@ -1036,6 +1084,8 @@ def build_app() -> gr.Blocks:
                     metric: Metric to score by; ``"all"`` includes every metric.
                     index: Interaction index to filter by (e.g. "SV"). Use "all" to include all indices.
                     game: Game name to filter by. Use "all" to include all games.
+                    n_bootstrap_samples: Number of bootstrap samples for CI estimation.
+                    n_permutations: Number of ELO permutations per bootstrap sample.
 
                 Yields:
                     Two Gradio update tuples: first hides the leaderboard table to force a
@@ -1060,14 +1110,27 @@ def build_app() -> gr.Blocks:
                     table_df, fig, info_md, cd_fig = cache[new_idx]
                     if cd_fig is None:
                         cd_fig = compute_cd_for_bucket(
-                            [r for r in raw_records if r.get("approximator_name") in selected_approxs],
-                            int(BUDGET_BUCKETS[new_idx]["budget"]), metric, index, game
+                            [
+                                r
+                                for r in raw_records
+                                if r.get("approximator_name") in selected_approxs
+                            ],
+                            int(BUDGET_BUCKETS[new_idx]["budget"]),
+                            metric,
+                            index,
+                            game,
                         )
                         cache[new_idx] = (table_df, fig, info_md, cd_fig)
                 else:
                     label_md, table_df, fig, info_md, cd_fig = update_elo_tab(
-                        new_idx, raw_records, selected_approxs, metric, index, game,
-                        n_bootstrap_samples, n_permutations,
+                        new_idx,
+                        raw_records,
+                        selected_approxs,
+                        metric,
+                        index,
+                        game,
+                        n_bootstrap_samples,
+                        n_permutations,
                     )
                     cache[new_idx] = (table_df, fig, info_md, cd_fig)
                 yield (
@@ -1103,12 +1166,24 @@ def build_app() -> gr.Blocks:
                     metric: Metric to score by; ``"all"`` includes every metric.
                     index: Interaction index to filter by (e.g. "SV"). Use "all" to include all indices.
                     game: Game name to filter by. Use "all" to include all games.
+                    n_bootstrap_samples: Number of bootstrap samples for CI estimation.
+                    n_permutations: Number of ELO permutations per bootstrap sample.
 
                 Yields:
                     Gradio update tuples forwarded from :func:`elo_navigate`.
                 """
-                yield from elo_navigate(idx, -1, raw_records, selected_approxs, elo_cache, metric, index, game,
-                                        n_bootstrap_samples, n_permutations)
+                yield from elo_navigate(
+                    idx,
+                    -1,
+                    raw_records,
+                    selected_approxs,
+                    elo_cache,
+                    metric,
+                    index,
+                    game,
+                    n_bootstrap_samples,
+                    n_permutations,
+                )
 
             def elo_next(
                 idx: int,
@@ -1131,12 +1206,24 @@ def build_app() -> gr.Blocks:
                     metric: Metric to score by; ``"all"`` includes every metric.
                     index: Interaction index to filter by (e.g. "SV"). Use "all" to include all indices.
                     game: Game name to filter by. Use "all" to include all games.
+                    n_bootstrap_samples: Number of bootstrap samples for CI estimation.
+                    n_permutations: Number of ELO permutations per bootstrap sample.
 
                 Yields:
                     Gradio update tuples forwarded from :func:`elo_navigate`.
                 """
-                yield from elo_navigate(idx, +1, raw_records, selected_approxs, elo_cache, metric, index, game,
-                                        n_bootstrap_samples, n_permutations)
+                yield from elo_navigate(
+                    idx,
+                    +1,
+                    raw_records,
+                    selected_approxs,
+                    elo_cache,
+                    metric,
+                    index,
+                    game,
+                    n_bootstrap_samples,
+                    n_permutations,
+                )
 
             elo_prev_btn.click(
                 fn=elo_prev,
@@ -1228,6 +1315,8 @@ def build_app() -> gr.Blocks:
                     metric: Metric to score by; ``"all"`` includes every metric.
                     index: Interaction index to filter by; ``"all"`` includes all.
                     game: Game name to filter by; ``"all"`` includes all games.
+                    n_bootstrap_samples: Number of bootstrap samples for CI estimation.
+                    n_permutations: Number of ELO permutations per bootstrap sample.
 
                 Yields:
                     Two Gradio update tuples: first hides all tables; second carries
@@ -1237,7 +1326,15 @@ def build_app() -> gr.Blocks:
                 hide_outputs = [gr.update()]
                 for _ in BUDGET_BUCKETS:
                     hide_outputs.extend([gr.update(visible=False), gr.update()])
-                yield *hide_outputs, gr.update(), gr.update(), gr.update(), gr.update(), gr.update(), gr.update()
+                yield (
+                    *hide_outputs,
+                    gr.update(),
+                    gr.update(),
+                    gr.update(),
+                    gr.update(),
+                    gr.update(),
+                    gr.update(),
+                )
 
                 parallel_outputs = compute_all_elo_buckets_parallel(
                     raw_records=raw_records,
@@ -1257,21 +1354,33 @@ def build_app() -> gr.Blocks:
                     fig = parallel_outputs[1 + 2 * i + 1]
                     outputs.extend([gr.update(value=table, visible=True, max_height=1000), fig])
 
-                filtered = [r for r in raw_records if r.get("approximator_name") in selected_approxs]
+                filtered = [
+                    r for r in raw_records if r.get("approximator_name") in selected_approxs
+                ]
                 new_cache = {
                     i: (
                         parallel_outputs[1 + 2 * i],
                         parallel_outputs[1 + 2 * i + 1],
                         first_info,
-                        compute_cd_for_bucket(filtered, int(BUDGET_BUCKETS[i]["budget"]), metric, index, game),
+                        compute_cd_for_bucket(
+                            filtered, int(BUDGET_BUCKETS[i]["budget"]), metric, index, game
+                        ),
                     )
                     for i in range(len(BUDGET_BUCKETS))
                 }
 
                 table_df, top_fig, info_md, top_cd_fig = new_cache[idx]
                 label_md = f"### {BUDGET_BUCKETS[idx]['label']}"
-                yield first_info, *outputs, new_cache, label_md, gr.update(value=table_df, visible=True,
-                                                                           max_height=1000), top_fig, info_md, top_cd_fig
+                yield (
+                    first_info,
+                    *outputs,
+                    new_cache,
+                    label_md,
+                    gr.update(value=table_df, visible=True, max_height=1000),
+                    top_fig,
+                    info_md,
+                    top_cd_fig,
+                )
 
             _all_bucket_outputs = [
                 all_buckets_info_md,
@@ -1645,9 +1754,12 @@ def build_app() -> gr.Blocks:
             det_reset_btn.click(fn=reset_det_filters, outputs=_det_filters)
 
         with gr.Tab("📖 Help"):
-            readme_content = (CURRENT_DIR / "README.md").read_text(encoding="utf-8") if (CURRENT_DIR / "README.md").exists() else "README not found."
+            readme_content = (
+                (CURRENT_DIR / "README.md").read_text(encoding="utf-8")
+                if (CURRENT_DIR / "README.md").exists()
+                else "README not found."
+            )
             gr.Markdown(readme_content)
-
 
         elo_jump_btn.click(
             fn=lambda approxs, budget_idx, metric, index, game: (
@@ -1656,7 +1768,10 @@ def build_app() -> gr.Blocks:
                 [str(BUDGET_BUCKETS[budget_idx]["budget"])],
                 [index] if index != "all" else [],
                 [metric] if metric != "all" else [],
-                [], [], [], [],  # n_players, max_order, seed, gt_method
+                [],
+                [],
+                [],
+                [],  # n_players, max_order, seed, gt_method
             ),
             inputs=[
                 elo_approx_filter,
@@ -1681,8 +1796,13 @@ def build_app() -> gr.Blocks:
                 fn=lambda game, approxs: (
                     [game] if game else [],
                     approxs or [],
-                    [], [], [],  # budget, index, metric
-                    [], [], [], [],  # n_players, max_order, seed, gt_method
+                    [],
+                    [],
+                    [],  # budget, index, metric
+                    [],
+                    [],
+                    [],
+                    [],  # n_players, max_order, seed, gt_method
                 ),
                 inputs=[game_dropdowns[metric], approx_checkboxes[metric]],
                 outputs=_det_filters,
@@ -1700,8 +1820,13 @@ def build_app() -> gr.Blocks:
             fn=lambda n, *vals: (
                 list(set(vals[MAX_COLS : MAX_COLS + n])),
                 list(set(vals[:n])),
-                [], [], [],  # budget, index, metric
-                [], [], [], [],  # n_players, max_order, seed, gt_method
+                [],
+                [],
+                [],  # budget, index, metric
+                [],
+                [],
+                [],
+                [],  # n_players, max_order, seed, gt_method
             ),
             inputs=[n_cols_state, *compare_approx_dropdowns, *compare_game_dropdowns],
             outputs=_det_filters,
