@@ -20,7 +20,7 @@ The module is structured as follows:
 ├── __init__.py                        # exposes the DatabaseClient and defined connectivity errors
 ├── cli
 │   ├── README.md                      # usage guide and documentation for the CLI
-│   ├── __init__.py           
+│   ├── __init__.py  
 │   ├── cli.py                         # entry point for the CLI
 │   ├── formatting.py                  # formatting utilities for the CLI
 │   ├── query_context.py               # context manager for the `seq` command of the CLI
@@ -28,7 +28,7 @@ The module is structured as follows:
 │   └── repl.py                        # defines CLI grammar (commands, arguments, and options)
 ├── connection
 │   ├── README.md                      # documentation for the database client
-│   ├── __init__.py                    # exposes the database client, factory, and defined connectivity errors       
+│   ├── __init__.py                    # exposes the database client, factory, and defined connectivity errors  
 │   ├── client.py                      # defines the abstract base class for the database client
 │   ├── client_factory.py              # factory for creating database clients based on provided variables
 │   ├── connection_exceptions.py       # defines the exceptions raised by the database client
@@ -73,9 +73,9 @@ Every stored record represents a single run of an approximator against a benchma
 ### Database Client
 
 The [`DatabaseClient`](connection/README.md) abstract base class defines a single storage API point, that hides the underlying storage implementation and is able to handle:
-- connectivity, 
-- inserts (including duplicate-safe inserts), 
-- deletes, 
+- connectivity,
+- inserts (including duplicate-safe inserts),
+- deletes,
 - reads.
 
 Concrete implementations (`MongoDBClient`, `LocalClient`, `HuggingFaceClient`) are created through the [`DatabaseClientFactory`](connection/README.md#databaseclientfactory) shown in the [Usage](#usage) section above, allowing application code to function through a unified interface. Full method reference, exception hierarchy, and how to register additional backends is documented in the [connection README](connection/README.md).
@@ -83,4 +83,3 @@ Concrete implementations (`MongoDBClient`, `LocalClient`, `HuggingFaceClient`) a
 ### Command Line Interface for Storage Interactions
 
 The [Storage CLI](cli/README.md) exposes the database client interactively from the terminal. It is meant to assist with the synchronization of different backends, so it supports opening several storage connections at once (each identified through a short ID like `local1` or `mongodb1`), exploring a connection's contents with the chained `seq` query language, and synchronizing data between backends via `insert` and `delete`. See the [CLI README](cli/README.md) for the full command grammar, a walkthrough with examples, and the precise implementation details.
-

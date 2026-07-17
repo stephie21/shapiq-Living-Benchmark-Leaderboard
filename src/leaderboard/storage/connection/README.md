@@ -42,7 +42,7 @@ It is also possible to use a string instead of the specially defined `DatabaseBa
 
 ### 2. Using the client
 
-Regardless of the concrete backend type, the returned object is always a `DatabaseClient`, which allows the user to write code that is independent of the specific backend being used. For a client to be valid, it must fulfill the contract defined by the `DatabaseClient` abstract base class. 
+Regardless of the concrete backend type, the returned object is always a `DatabaseClient`, which allows the user to write code that is independent of the specific backend being used. For a client to be valid, it must fulfill the contract defined by the `DatabaseClient` abstract base class.
 
 
 ## `DatabaseClient` Interface

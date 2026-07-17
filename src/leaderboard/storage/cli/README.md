@@ -11,7 +11,7 @@ The module is structured as follows:
 
 ```
 ├── cli
-│   ├── __init__.py           
+│   ├── __init__.py  
 │   ├── cli.py                         # entry point for the CLI
 │   ├── formatting.py                  # formatting utilities for the CLI
 │   ├── query_context.py               # context manager for the `seq` command of the CLI
@@ -84,13 +84,13 @@ Disclaimer. Running this for the first time may take some time.
 
 Available Storage for interaction using the CLI are:
 - local (relies on local `.jsonl` files)
-- mongodb 
+- mongodb
 - huggingface
 
-All available results store can be initiated with the default configurations as they are available in the `.env` file. 
+All available results store can be initiated with the default configurations as they are available in the `.env` file.
 
->[!Note] 
->Keep in mind that MongoDB connections error can also happen due to the **IP whitelisting** requirement of MongoDB. 
+>[!Note]
+>Keep in mind that MongoDB connections error can also happen due to the **IP whitelisting** requirement of MongoDB.
 
 
 Example (Adding a mongodb backend with default parameters):
@@ -110,7 +110,7 @@ Active connections are tracked through the `list` command:
 
 The `seq` command allows for *simple* SQL-like operations on the database. It functions via **chaining** commands, which allows one to define a sequence of filters and list **distinct** values in fields of interest. `eoc` marks the end of a command and triggers running the sequence.
 
-The `help` command runs inside `seq` provides an overview of the abilities of the command sequencer. 
+The `help` command runs inside `seq` provides an overview of the abilities of the command sequencer.
 <img width="1238" height="402" alt="img_help_seq" src="https://github.com/user-attachments/assets/ab6ff7f1-640c-481a-90c1-5b5e8dcb9b7d" />
 
 We provide an example of interacting with `seq`. In this example, we want to list all budgets available for the "BikeSharing" game.
@@ -123,15 +123,15 @@ We provide an example of interacting with `seq`. In this example, we want to lis
 
 ### 4. Storage Operations
 
-The Storage CLI supports two very important storage interaction functionalities, namely **insert** and **delete**. 
+The Storage CLI supports two very important storage interaction functionalities, namely **insert** and **delete**.
 
 #### 4.1. Insertion
 
 Insertion serves as an easy way to synchronize two active storages. The insertion command goes as follows:
 
-`Usage: insert [safe] <src> to <dst> [using <mode>]` 
+`Usage: insert [safe] <src> to <dst> [using <mode>]`
 
-Simple insertion performs a "copy" operation. It takes ALL the entries from the source storage (provided via its `id`) and copies them to the destination storage (also provided via its `id`). 
+Simple insertion performs a "copy" operation. It takes ALL the entries from the source storage (provided via its `id`) and copies them to the destination storage (also provided via its `id`).
 
 For example, to copy all the entries from the `MongoDB` database (with `id = mongodb1`) to a local `.jsonl` file (with `id = local1`) one should run:
 
@@ -141,14 +141,14 @@ insert mongodb1 to local1
 ```
 
 **Safe** insertion allows for the handling of duplicates. This is significantly slower. For safe insertion, three modes are available (default is `merge`):
-- `merge`: the "newest" object (the object to be inserted) overrides the common attributes. Attributes that only exist for the "older" (already existing) object are retained. 
-- `skip`: if a duplicate object is found, insertion is skipped. 
-- `override`: the duplicate object is overridden completely (no retaining of attributes). 
+- `merge`: the "newest" object (the object to be inserted) overrides the common attributes. Attributes that only exist for the "older" (already existing) object are retained.
+- `skip`: if a duplicate object is found, insertion is skipped.
+- `override`: the duplicate object is overridden completely (no retaining of attributes).
 
 
 #### 4.2 Deletion
 
-As this tool is intended to be used for storage management, deletion is also supported. 
+As this tool is intended to be used for storage management, deletion is also supported.
 
 >[!Warning]
 >Objects, once deleted are NOT recoverable. Recommended to create a local snapshot before any deletion operations.
@@ -159,7 +159,7 @@ To delete, there exist two options:
 
 The command `delete entries` matches the objects available in one storage to the objects available in the other and deletes them (no confirmation required). Due to this pairwise matching between the two storages deletion speed depends on the number of comparisons to be done.
 
-The command `delete from <id>` allows for more customization. Options available are: `all` and `by config`. Deleting everything requires additional confirmation. To delete by config, a logic similar to `seq` is used. Field names and values should be provided exactly as they appear in the database. 
+The command `delete from <id>` allows for more customization. Options available are: `all` and `by config`. Deleting everything requires additional confirmation. To delete by config, a logic similar to `seq` is used. Field names and values should be provided exactly as they appear in the database.
 
 Example (Deleting budget 100 runs under BikeSharing):
 

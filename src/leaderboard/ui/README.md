@@ -50,10 +50,10 @@ The main ranking view. Approximators are compared pairwise within each *budget b
 
 - Ranked table with ELO score, match count, wins, losses, and ties
 - Bar chart of ELO scores with 95 % bootstrap confidence intervals (shown when all games are selected; hidden for single-game view)
-- CD diagram (switchable via the sub-tab) showing which pairs of approximators are 
-*not* significantly different (connected by a bar); uses the same metric and index 
+- CD diagram (switchable via the sub-tab) showing which pairs of approximators are
+*not* significantly different (connected by a bar); uses the same metric and index
 filters as the ELO computation
-- Info line summarising the active configuration and any relevant warnings
+- Info line summarizing the active configuration and any relevant warnings
 
 **Side-by-side overview:**  
 (below the navigation panel): all five budget buckets rendered simultaneously for a quick cross-budget comparison.
