@@ -33,6 +33,8 @@ LOCAL_GAME_REGISTRY = {
     "Ionosphere": local_tabular.Ionosphere,
     "Nursery": local_tabular.Nursery,
     "Zoo": local_tabular.Zoo,
+    "Splice": local_tabular.Splice,
+    "TaiwaneseBankruptcy": local_tabular.TaiwaneseBankruptcy,
     "ImageClassifier": benchmark_image.ImageClassifier,
 }
 
@@ -57,7 +59,6 @@ VISUAL_GAMES = {"ImageClassifier"}
 
 # Supported model backends for visual games.
 SUPPORTED_VISUAL_MODELS = [
-    "vit_16_patches",
     "vit_9_patches",
     "resnet_18",
 ]
@@ -88,11 +89,30 @@ GAME_PLAYER_COUNTS = {
     "Soybean": 35,
     "Annealing": 38,
     "SOUM": 10,
+    "Splice": 60,
+    "TaiwaneseBankruptcy": 94,
     "Arrhythmia": 279,
 }
 
 # --- Supported Imputers Whitelist ---
 SUPPORTED_IMPUTERS = ["marginal", "conditional"]
+
+# --- Supported loss function Whitelist ---
+SUPPORTED_LOSS_FUNCTIONS = [
+    "accuracy_score",
+    "cross_entropy",
+    "mean_absolute_error",
+    "mean_squared_error",
+]
+
+# --- Supported ML models Whitelist ---
+SUPPORTED_MODELS = ["decision_tree", "random_forest", "gradient_boosting"]
+
+# --- Supported GT strategy Whitelist ---
+SUPPORTED_GT_STRATEGY = ["compute"]
+
+# --- Supported GT methods Whitelist ---
+SUPPORTED_GT_METHODS = ["ExactComputer", "TreeExplainer"]
 
 # --- Supported Approximators Whitelist ---
 ALL_SUPPORTED_APPROXIMATORS = [

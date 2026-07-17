@@ -6,6 +6,7 @@ This module contains all Pydantic models and their associated validators for the
 from __future__ import annotations
 
 import logging
+import sys
 
 # Import the dataset loader functions from your shapiq_games package
 import shapiq_games.datasets._all as loaders
@@ -32,6 +33,8 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(
 # Annealing                 | 38
 # ERROR - Failed to check player count for Annealing: Cannot perform reduction 'median' with string dtype
 
+# Splice                    | 60
+# TaiwaneseBankruptcy       | 94
 # Arrhythmia                | 279
 # =======================================================
 
@@ -51,6 +54,8 @@ def main() -> None:
         "BreastCancer": "load_breast_cancer",
         "Ionosphere": "load_ionosphere",
         "Soybean": "load_soybean",
+        "Splice": "load_splice",
+        "TaiwaneseBankruptcy": "load_taiwanese_bankruptcy",
         "Annealing": "load_annealing",
         "Arrhythmia": "load_arrhythmia",
     }
@@ -64,7 +69,9 @@ def main() -> None:
             X, _ = loader_fn()
 
             # The number of columns in X is the exact number of players (n_players)
-            _ = X.shape[1]
+            n_players = X.shape[1]
+            output = f"{game_name:<25} | {n_players:<15}"
+            sys.stdout.write(f"{output}\n")
 
         except Exception:
             logger.exception("Failed to check player count for %s", game_name)

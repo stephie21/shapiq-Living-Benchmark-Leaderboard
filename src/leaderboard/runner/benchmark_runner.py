@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import json
 from typing import TYPE_CHECKING, Any
 
 from leaderboard.runner.aggregator import aggregate_run_records
@@ -100,11 +99,11 @@ def run_benchmark(
     aggregated_result = aggregate_fn(results)
 
     # print-out
-    logger.info("number of raw results: %d", len(results))
-    logger.info("First raw run record:")
-    logger.info(json.dumps(results[0], indent=2))
-    logger.info("\nAggregated result:")
-    logger.info(json.dumps(aggregated_result, indent=2))
+    # logger.info("number of raw results: %d", len(results))
+    # logger.info("First raw run record:")
+    # logger.info(json.dumps(results[0], indent=2))
+    # logger.info("\nAggregated result:")
+    # logger.info(json.dumps(aggregated_result, indent=2))
 
     return {
         "raw_results": results,

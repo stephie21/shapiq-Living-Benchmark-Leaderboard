@@ -804,3 +804,115 @@ class Zoo(LocalExplanation):
             verbose=verbose,
             random_state=random_state,
         )
+
+
+class Splice(LocalExplanation):
+    """The Splice dataset as a LocalExplanation game.
+
+    Attributes:
+        setup: The :class:`~shapiq_games.benchmark.setup.GameBenchmarkSetup` object.
+    """
+
+    def __init__(
+        self,
+        *,
+        class_to_explain: int | None = None,
+        x: np.ndarray | int | None = None,
+        model_name: str = "decision_tree",
+        imputer: str = "marginal",
+        normalize: bool = True,
+        verbose: bool = False,
+        random_state: int | None = 42,
+    ) -> None:
+        """Initializes the Splice LocalExplanation game.
+
+        Args:
+            x: The data point to explain. Can be an index of the background data or a 1d matrix of
+                shape ``(n_features,)``. Defaults to ``None`` which will select a random data point
+                from the background data.
+
+            class_to_explain: The class label to explain. If ``None``, then the class with the
+                highest probability is used. Defaults to ``None``.
+
+            model_name: The model to explain as a string. Defaults to ``'decision_tree'``. Available
+                models are ``'decision_tree'``, ``'random_forest'``, and ``'gradient_boosting'``.
+
+            imputer: The imputer to use. Defaults to 'marginal'. Available imputers are
+                ``'marginal'`` and ``'conditional'``.
+
+            normalize: A flag to normalize the game values. If ``True``, then the game values are
+                normalized and centered to be zero for the empty set of features. Defaults to
+                ``True``.
+
+            verbose: A flag to print the validation score of the model if trained. Defaults to
+                ``False``.
+
+            random_state: The random state to use for the imputer. Defaults to ``42``.
+        """
+        _init_classification_game(
+            self,
+            dataset_name="splice",
+            class_to_explain=class_to_explain,
+            x=x,
+            model_name=model_name,
+            imputer=imputer,
+            normalize=normalize,
+            verbose=verbose,
+            random_state=random_state,
+        )
+
+
+class TaiwaneseBankruptcy(LocalExplanation):
+    """The TaiwaneseBankruptcy dataset as a LocalExplanation game.
+
+    Attributes:
+        setup: The :class:`~shapiq_games.benchmark.setup.GameBenchmarkSetup` object.
+    """
+
+    def __init__(
+        self,
+        *,
+        class_to_explain: int | None = None,
+        x: np.ndarray | int | None = None,
+        model_name: str = "decision_tree",
+        imputer: str = "marginal",
+        normalize: bool = True,
+        verbose: bool = False,
+        random_state: int | None = 42,
+    ) -> None:
+        """Initializes the TaiwaneseBankruptcy LocalExplanation game.
+
+        Args:
+            x: The data point to explain. Can be an index of the background data or a 1d matrix of
+                shape ``(n_features,)``. Defaults to ``None`` which will select a random data point
+                from the background data.
+
+            class_to_explain: The class label to explain. If ``None``, then the class with the
+                highest probability is used. Defaults to ``None``.
+
+            model_name: The model to explain as a string. Defaults to ``'decision_tree'``. Available
+                models are ``'decision_tree'``, ``'random_forest'``, and ``'gradient_boosting'``.
+
+            imputer: The imputer to use. Defaults to 'marginal'. Available imputers are
+                ``'marginal'`` and ``'conditional'``.
+
+            normalize: A flag to normalize the game values. If ``True``, then the game values are
+                normalized and centered to be zero for the empty set of features. Defaults to
+                ``True``.
+
+            verbose: A flag to print the validation score of the model if trained. Defaults to
+                ``False``.
+
+            random_state: The random state to use for the imputer. Defaults to ``42``.
+        """
+        _init_classification_game(
+            self,
+            dataset_name="taiwanese_bankruptcy",
+            class_to_explain=class_to_explain,
+            x=x,
+            model_name=model_name,
+            imputer=imputer,
+            normalize=normalize,
+            verbose=verbose,
+            random_state=random_state,
+        )

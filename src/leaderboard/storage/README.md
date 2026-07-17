@@ -20,7 +20,7 @@ The module is structured as follows:
 ├── __init__.py                        # exposes the DatabaseClient and defined connectivity errors
 ├── cli
 │   ├── README.md                      # usage guide and documentation for the CLI
-│   ├── __init__.py  
+│   ├── __init__.py
 │   ├── cli.py                         # entry point for the CLI
 │   ├── formatting.py                  # formatting utilities for the CLI
 │   ├── query_context.py               # context manager for the `seq` command of the CLI
@@ -28,7 +28,7 @@ The module is structured as follows:
 │   └── repl.py                        # defines CLI grammar (commands, arguments, and options)
 ├── connection
 │   ├── README.md                      # documentation for the database client
-│   ├── __init__.py                    # exposes the database client, factory, and defined connectivity errors  
+│   ├── __init__.py                    # exposes the database client, factory, and defined connectivity errors
 │   ├── client.py                      # defines the abstract base class for the database client
 │   ├── client_factory.py              # factory for creating database clients based on provided variables
 │   ├── connection_exceptions.py       # defines the exceptions raised by the database client

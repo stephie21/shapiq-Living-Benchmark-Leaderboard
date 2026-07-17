@@ -1251,3 +1251,70 @@ def load_zoo() -> tuple[pd.DataFrame, pd.Series]:
     y = data["target"]
     y = pd.Series(LabelEncoder().fit_transform(y.astype(str)), name="target")
     return X, y
+
+
+def load_splice() -> tuple[pd.DataFrame, pd.Series]:
+    """Load the Splice dataset from local CSV file.
+
+    Original source: https://www.openml.org/d/46958
+
+    Returns:
+        The Splice dataset as pandas objects ``(X, y)``.
+
+    Notes:
+        The dataset contains 3190 samples with 60 categorical features and 3 classes.
+        All categorical features are ordinal-encoded; target label-encoded to 0-based integers.
+
+    Example:
+        >>> from shapiq_games.datasets import load_splice
+        >>> x_data, y_data = load_splice()
+        >>> print(x_data.shape, y_data.shape)
+        ((3190, 60), (3190,))
+    """
+    data = _try_load("splice.csv")
+
+    # Assume the last column in the CSV is the target column.
+    # Dynamically fetch the last column name using df.columns[-1] to improve robustness.
+    target_col = data.columns[-1]
+
+    X = data.drop(columns=[target_col])
+    y = data[target_col]
+
+    # Categorical encoding is required since features are DNA sequences (A, C, G, T).
+    X = _impute(X)  # Defensive imputation for missing values
+    X = _encode_categorical(X)
+    y = pd.Series(LabelEncoder().fit_transform(y.astype(str)), name="target")
+    return X, y
+
+
+def load_taiwanese_bankruptcy() -> tuple[pd.DataFrame, pd.Series]:
+    """Load the Taiwanese Bankruptcy dataset from local CSV file.
+
+    Original source: https://www.openml.org/d/46962
+
+    Returns:
+        The Taiwanese Bankruptcy dataset as pandas objects ``(X, y)``.
+
+    Notes:
+        The dataset contains samples with 94 numeric features and 2 classes (bankruptcy / non-bankruptcy).
+        Missing values imputed with median; target label-encoded to 0-based integers.
+
+    Example:
+        >>> from shapiq_games.datasets import load_taiwanese_bankruptcy
+        >>> x_data, y_data = load_taiwanese_bankruptcy()
+    """
+    data = _try_load("taiwanese_bankruptcy.csv")
+
+    # The OpenML export for this dataset stores the label in the first column (`Bankrupt`).
+    # Keep a defensive fallback for alternate exports.
+    target_col = "Bankrupt" if "Bankrupt" in data.columns else data.columns[-1]
+
+    X = data.drop(columns=[target_col])
+    y = data[target_col]
+
+    # Convert to numeric and impute missing values for numerical financial data.
+    X = X.apply(pd.to_numeric, errors="coerce")
+    X = _impute(X)
+    X = _encode_categorical(X)  # Defensive check to encode any mixed object types
+    y = pd.Series(LabelEncoder().fit_transform(y.astype(str)), name="target")
+    return X, y

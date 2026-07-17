@@ -11,7 +11,7 @@ The module is structured as follows:
 
 ```
 ├── cli
-│   ├── __init__.py  
+│   ├── __init__.py
 │   ├── cli.py                         # entry point for the CLI
 │   ├── formatting.py                  # formatting utilities for the CLI
 │   ├── query_context.py               # context manager for the `seq` command of the CLI
