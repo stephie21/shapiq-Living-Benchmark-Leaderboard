@@ -79,7 +79,7 @@ cp configs/template_tabular.yaml configs/default_run.yaml
 Modify `default_run.yaml` according to your experimental parameters then start the runner script:
 
 ```bash
-python src/leaderboard/runner/runner_with_config.py 
+python src/leaderboard/runner/runner_with_config.py
 
 ```
 
@@ -186,7 +186,7 @@ Dictates how the absolute true values are derived against which approximators ar
 
 * **`strategy`**: Currently only support to `"compute"`.
 * **`method`**: The backend computation engine.
-* **ExactComputer**: Executes a brute-force calculation evaluating all $O(2^n)$ feature coalitions. 
+* **ExactComputer**: Executes a brute-force calculation evaluating all $O(2^n)$ feature coalitions.
 * `Anti-Freeze Guard`: The system will throw a Critical Error if you attempt to use this on tabular games where `n > 14`
   to prevent combinatorial explosion.
 * **TreeExplainer**: Utilizes a highly optimized, polynomial-time tree traversal algorithm (fast for $n > 14$).

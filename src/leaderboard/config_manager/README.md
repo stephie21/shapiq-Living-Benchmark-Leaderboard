@@ -99,15 +99,47 @@ benchmark wrapper, and finally registering it in the configuration manager.
    `src/shapiq_games/datasets/data/`.
 2. **Create Loader Function**: Open `src/shapiq_games/datasets/_all.py` and write the data extraction and imputation
    logic.
-<img width="849" height="702" alt="Screenshot 2026-07-17 at 14 40 46" src="https://github.com/user-attachments/assets/7fe95f5f-7068-485b-9e02-23c24009c5e9" />
 
+```python
+def load_taiwanese_bankruptcy() -> tuple[pd.DataFrame, pd.Series]:
+
+
+"""Load the Taiwanese Bankruptcy dataset from local CSV file.
+
+Original source: https://www.openml.org/d/46962
+
+Returns:
+The Taiwanese Bankruptcy dataset as pandas objects ``(X, y)``.
+
+Notes:
+The dataset contains samples with 94 numeric features and 2 classes (bankruptcy / non-bankruptcy).
+Missing values imputed with median; target label-encoded to 0-based integers.
+
+Example:
+>>> from shapiq_games.datasets import load_taiwanese_bankruptcy
+>>> x_data, y_data = load_taiwanese_bankruptcy()
+"""
+data = _try_load("taiwanese_bankruptcy.csv")
+
+# The OpenML export for this dataset stores the label in the first column (`Bankrupt`).
+# Keep a defensive fallback for alternate exports.
+target_col = "Bankrupt" if "Bankrupt" in data.columns else data.columns[-1]
+
+X = data.drop(columns=[target_col])
+y = data[target_col]
+
+# Convert to numeric and impute missing values for numerical financial data.
+X = X.apply(pd.to_numeric, errors="coerce")
+X = _impute(X)
+X = _encode_categorical(X)  # Defensive check to encode any mixed object types
+y = pd.Series(LabelEncoder().fit_transform(y.astype(str)), name="target")
+return X, y
+```
 
 3. **Expose the Loader**: Open `src/shapiq_games/datasets/__init__.py`.
 
 * Add `load_taiwanese_bankruptcy` to the `from ._all import (...)` block.
 * Add `"load_taiwanese_bankruptcy"` to the `__all__` list.
-<img width="297" height="375" alt="Screenshot 2026-07-17 at 14 42 20" src="https://github.com/user-attachments/assets/78b8b8c4-32cf-444d-9b9d-fdd0fb020e3c" />
-<img width="273" height="381" alt="Screenshot 2026-07-17 at 14 42 11" src="https://github.com/user-attachments/assets/03de58e0-e5d4-4e6f-8c56-1bf7c6d84168" />
 
 #### Phase 2: Integrate into the Benchmark Engine (`src/shapiq_games/benchmark`)
 
@@ -117,19 +149,85 @@ benchmark wrapper, and finally registering it in the configuration manager.
 * Append `"taiwanese_bankruptcy"` to the `AVAILABLE_DATASETS` list.
 * Inside the `__init__` method, add the routing logic:
 
-<img width="774" height="471" alt="Screenshot 2026-07-17 at 14 47 59" src="https://github.com/user-attachments/assets/cd5c3209-ffea-4969-8b7c-f68c94164e13" />
+```python
+elif dataset_name == "taiwanese_bankruptcy":
+x_data, y_data = load_taiwanese_bankruptcy()
+self.feature_names: list = list(x_data.columns)
+self.dataset_type = "classification"
+...
+else:
+msg = (
+    f"Invalid dataset name {dataset_name}. Available datasets are 'adult_census', "
+    "'annealing', 'arrhythmia', 'bike_sharing', 'breast_cancer', "
+    "'california_housing', 'hepatitis', 'ionosphere', 'iris', 'monks1', "
+    "'monks2', 'monks3', 'mushroom', 'nursery', 'soybean', 'splice', "
+    "'taiwanese_bankruptcy', 'thyroid', 'zoo'."
+)
+```
 
-  * *Remember to update the fallback `else:` error message string to include your new dataset name so users see it in the
+* *Remember to update the fallback `else:` error message string to include your new dataset name so users see it in the
   terminal.*
 
 
 5. **Create the Game Class**: Open `src/shapiq_games/benchmark/local_xai/benchmark_tabular.py` and create the
    configuration wrapper:
-   
-<img width="827" height="674" alt="Screenshot 2026-07-17 at 14 50 10" src="https://github.com/user-attachments/assets/61071605-4838-4858-96af-f2b8079fae16" />
 
-<img width="747" height="521" alt="Screenshot 2026-07-17 at 14 50 34" src="https://github.com/user-attachments/assets/8e9222fd-a085-49bc-8f72-361e6033e2cc" />
+```python
+class TaiwaneseBankruptcy(LocalExplanation):
+    """The TaiwaneseBankruptcy dataset as a LocalExplanation game.
 
+    Attributes:
+        setup: The :class:`~shapiq_games.benchmark.setup.GameBenchmarkSetup` object.
+    """
+
+    def __init__(
+            self,
+            *,
+            class_to_explain: int | None = None,
+            x: np.ndarray | int | None = None,
+            model_name: str = "decision_tree",
+            imputer: str = "marginal",
+            normalize: bool = True,
+            verbose: bool = False,
+            random_state: int | None = 42,
+    ) -> None:
+        """Initializes the TaiwaneseBankruptcy LocalExplanation game.
+
+        Args:
+            x: The data point to explain. Can be an index of the background data or a 1d matrix of
+                shape ``(n_features,)``. Defaults to ``None`` which will select a random data point
+                from the background data.
+
+            class_to_explain: The class label to explain. If ``None``, then the class with the
+                highest probability is used. Defaults to ``None``.
+
+            model_name: The model to explain as a string. Defaults to ``'decision_tree'``. Available
+                models are ``'decision_tree'``, ``'random_forest'``, and ``'gradient_boosting'``.
+
+            imputer: The imputer to use. Defaults to 'marginal'. Available imputers are
+                ``'marginal'`` and ``'conditional'``.
+
+            normalize: A flag to normalize the game values. If ``True``, then the game values are
+                normalized and centered to be zero for the empty set of features. Defaults to
+                ``True``.
+
+            verbose: A flag to print the validation score of the model if trained. Defaults to
+                ``False``.
+
+            random_state: The random state to use for the imputer. Defaults to ``42``.
+        """
+        _init_classification_game(
+            self,
+            dataset_name="taiwanese_bankruptcy",
+            class_to_explain=class_to_explain,
+            x=x,
+            model_name=model_name,
+            imputer=imputer,
+            normalize=normalize,
+            verbose=verbose,
+            random_state=random_state,
+        )
+```
 
 6. **Expose the Game Class**: Open `src/shapiq_games/benchmark/local_xai/__init__.py`.
 
@@ -142,19 +240,31 @@ Now that the game exists in the underlying library, you must whitelist it for th
 
 7. **Bind to Registry**: Open `src/leaderboard/config_manager/constants.py`. Import the game and map it inside the
    `LOCAL_GAME_REGISTRY` (and `GLOBAL_GAME_REGISTRY` if applicable).
-   
-   <img width="521" height="114" alt="Screenshot 2026-07-17 at 14 52 43" src="https://github.com/user-attachments/assets/2eabcc4e-6e03-406d-80a4-dc4c911fc2c3" />
+
+```python
+LOCAL_GAME_REGISTRY = {
+    "BikeSharing": local_tabular.BikeSharing,
+    "TaiwaneseBankruptcy": local_tabular.TaiwaneseBankruptcy,
+    "ImageClassifier": benchmark_image.ImageClassifier,
+}
+```
 
 8. **Define Dimensionality (CRITICAL)**: You MUST hardcode the exact feature dimension size inside the
    `GAME_PLAYER_COUNTS` dictionary:
 
-<img width="374" height="120" alt="Screenshot 2026-07-17 at 14 53 23" src="https://github.com/user-attachments/assets/76707d9b-c308-4508-97fd-a24813c037be" />
+```python
+GAME_PLAYER_COUNTS = {
+
+    "TaiwaneseBankruptcy": 94,
+
+}
+```
 
 *Note: The Pydantic validators rely strictly on this integer to perform budget boundary checks ($n+1 \le B < 2^n$) and
 Out-Of-Memory (OOM) guards.*
 
 *Note:**Task Classification**: If your new dataset is a Regression task, you MUST append its string name to the
-   `REGRESSION_GAMES` set to activate the loss-function cross-validation locks.
+`REGRESSION_GAMES` set to activate the loss-function cross-validation locks.
 
 ---
 
@@ -165,9 +275,17 @@ To add a new sampling or proxy algorithm to the benchmark comparison:
 1. **Verify Upstream Integration**: Ensure that your custom algorithm class is properly implemented, inherits from
    `shapiq.approximator.Approximator`, and is registered in the appropriate index capability lists inside the core
    `shapiq` package (e.g., `SV_APPROXIMATORS` or `SII_APPROXIMATORS`).
-2. **Update the Whitelist**: Open `src/leaderboard/config_manager/constants.py`. Add the precise, case-sensitive class name of your algorithm to the `ALL_SUPPORTED_APPROXIMATORS`
+2. **Update the Whitelist**: Open `src/leaderboard/config_manager/constants.py`. Add the precise, case-sensitive class
+   name of your algorithm to the `ALL_SUPPORTED_APPROXIMATORS`
    list.
-<img width="567" height="476" alt="Screenshot 2026-07-17 at 14 56 49" src="https://github.com/user-attachments/assets/ceb1180c-291e-48ec-bc5c-5b50a5d46957" />
+
+```python
+ALL_SUPPORTED_APPROXIMATORS = [
+    "OwenSamplingSV",
+    "YouNewApproximator",
+    ...
+]
+```
 
 Once registered in the `constants.py` file, the Pydantic validator will immediately recognize it as a legitimate input,
 allowing you to invoke it directly via the `approximators` list in your `default_run.yaml` files.
