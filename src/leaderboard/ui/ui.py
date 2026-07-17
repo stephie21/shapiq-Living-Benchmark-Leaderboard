@@ -517,7 +517,11 @@ def compute_elo_for_bucket(
     )
 
     y_min = min(elo_scores) - 20 if elo_scores else 950
-    y_max = (max(ci_upper) + 60 if n_bootstrap_samples > 0 else max(elo_scores) + 60) if elo_scores else 1050
+    y_max = (
+        (max(ci_upper) + 60 if n_bootstrap_samples > 0 else max(elo_scores) + 60)
+        if elo_scores
+        else 1050
+    )
 
     fig.update_layout(
         title=f"ELO Ratings — Budget {budget}",
@@ -828,8 +832,8 @@ def build_app() -> gr.Blocks:
         for m in available_metrics:
             col = f"{m}_mean"
 
-            active_pairs = list(zip(active_games, active_approxs))
-            mask = pd.Series(False, index=df_agg.index)
+            active_pairs = list(zip(active_games, active_approxs, strict=False))
+            mask = pd.Series(data=False, index=df_agg.index)
             for game, approx in active_pairs:
                 mask |= (df_agg["game_name"] == game) & (df_agg["approximator_name"] == approx)
             df_filtered = df_agg[mask]
