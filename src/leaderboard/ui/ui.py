@@ -14,7 +14,6 @@ import threading
 from concurrent.futures import ProcessPoolExecutor
 from dataclasses import dataclass
 from pathlib import Path
-from time import perf_counter
 from typing import TYPE_CHECKING, Any, TypeVar, cast
 
 if TYPE_CHECKING:
@@ -36,12 +35,15 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(
 logging.getLogger("httpx").setLevel(logging.WARNING)
 
 load_dotenv()
+
+# Generic return type used by _with_spinner.
 T = TypeVar("T")
 
 CURRENT_DIR = Path(__file__).parent
 PROJECT_ROOT = CURRENT_DIR.parent.parent.parent
 RESULTS_PATH = PROJECT_ROOT / "data" / "results_raw.jsonl"
 
+# Values at or below this are treated as zero for log-scale filtering.
 ZERO_THRESHOLD = 1e-7
 
 COLORS = [
@@ -57,6 +59,9 @@ COLORS = [
     "#FECB52",
 ]
 DASH_STYLES = ["solid", "dash", "dot", "dashdot", "longdash", "longdashdot"]
+
+# Global mapping of approximator name → {"color": ..., "dash": ...},
+# populated once at startup via update_global_styles().
 GLOBAL_APPROX_STYLES = {}
 
 LOADING_METHOD = "mongodb"  # "local" or "mongodb" or "huggingface"
@@ -74,7 +79,7 @@ BUDGET_BUCKETS = [
 # Temporary seed determination
 SEED_IDs = ["approx_seed", "seed"]  # List of possible seed identifier columns in the raw data
 
-# Compare tab globals
+# Compare tab: maximum and default number of side-by-side columns.
 MAX_COLS = 5
 DEFAULT_COLS = 2
 
@@ -136,15 +141,6 @@ def update_global_styles(df: pd.DataFrame) -> None:
             "color": COLORS[idx % len(COLORS)],
             "dash": DASH_STYLES[idx % len(DASH_STYLES)],
         }
-
-
-def reload_data() -> pd.DataFrame:
-    """Reload the raw data from the configured source and re-aggregate it.
-
-    Returns:
-        Updated aggregated DataFrame ready for the leaderboard UI.
-    """
-    return load_and_aggregate(method=LOADING_METHOD, path=RESULTS_PATH)
 
 
 def load_and_aggregate(method: str = "mongodb", path: str | Path = RESULTS_PATH) -> pd.DataFrame:
@@ -307,6 +303,7 @@ def _with_spinner(message: str, fn: Callable[[], T]) -> T:
     done = threading.Event()
 
     def spin() -> None:
+        """Animate the spinner in a loop until *done* is set, then print a checkmark."""
         i = 0
         while not done.is_set():
             print(f"\r{spinner[i % len(spinner)]}  {message}", end="", flush=True)  # noqa: T201
@@ -630,8 +627,10 @@ def compute_all_elo_buckets_parallel(
         n_permutations: Number of ELO permutations per bootstrap sample.
 
     Returns:
-        Flat tuple ``(info_md, table_0, fig_0, table_1, fig_1, …)`` — one
-        ``(table, fig)`` pair per entry in :data:`BUDGET_BUCKETS`.
+        Flat tuple where ``outputs[0]`` is the info markdown string,
+            ``outputs[1 + 2*i]`` is the leaderboard DataFrame, and
+            ``outputs[1 + 2*i + 1]`` is the Plotly Figure for bucket *i*
+            (matching the order of :data:`BUDGET_BUCKETS`).
     """
     filtered = [
         record for record in raw_records if record.get("approximator_name") in selected_approxs
@@ -892,9 +891,10 @@ def build_app() -> gr.Blocks:
         Comparison of Shapley value approximators across games, budgets, and seeds.
         """)
 
-        # Store aggregated DataFrame in Gradio state to support live reloads
+        # Gradio state holding the aggregated DataFrame for use in event handlers.
         df_state = gr.State(value=df_agg)
 
+        # Gradio state holding the raw records list for use in event handlers.
         raw_state = gr.State(value=raw_records)
 
         with gr.Tab("ELO Leaderboard"):
@@ -1009,7 +1009,8 @@ def build_app() -> gr.Blocks:
                 },
             )
 
-            # Populate initial cache from precomputed results
+            # Cache schema: {bucket_idx: (table_df, fig, info_md, cd_fig)}
+            # Populated from precomputed parallel results to avoid recomputation on first render.
             _elo_init_cache = {
                 i: (
                     _initial_all_bucket_outputs[1 + 2 * i],  # table
@@ -1408,6 +1409,8 @@ def build_app() -> gr.Blocks:
                     top_cd_fig,
                 )
 
+            # Output list for update_all_buckets: [info_md, table_0, fig_0, table_1, fig_1, ...,
+            # elo_cache_state, elo_bucket_label, elo_table, elo_plot, elo_info_md, elo_cd_plot]
             _all_bucket_outputs = [
                 all_buckets_info_md,
                 *[
@@ -1491,6 +1494,7 @@ def build_app() -> gr.Blocks:
         with gr.Tab("Compare Approximators"):
             gr.Markdown("## Side-by-side Approximator Comparison")
 
+            # Inject CSS: push jump buttons to the right, hide inactive comparison columns
             gr.HTML(
                 "<style>.compare-jump-btn { margin-left: auto !important; } .elo-jump-btn { margin-left: auto !important; } .hidden-col { display: none !important; }</style>"
             )
