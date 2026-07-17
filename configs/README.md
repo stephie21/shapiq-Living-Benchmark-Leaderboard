@@ -16,9 +16,9 @@ specific computational budgets assigned for our ongoing benchmark evaluations.
 | **CaliforniaHousing**   |       8       | Local XAI      | `SII` (3), `k-SII` (3), `STII` (3), `FBII` (4), `FSII` (4) | 250                         | 10           |
 | **BikeSharing**         |      12       | Local XAI      | `SV`, `k-SII`, `SII`, `STII`, `FBII`, `FSII`               | 250, 500, 1000              | 30           |
 | **AdultCensus**         |      14       | **Global XAI** | `SV`, `k-SII`, `SII`, `STII`                               | 250, 500, 1000, 5000, 10000 | 10           |
-| **Mushroom**            |      22       | Local XAI      | `SV`, `SII`, `k-SII`                                       | 250, 500, 1000, 5000, 10000 | 6            |
-| **Soybean**             |      35       | Local XAI      | `SV`, `SII`, `k-SII`                                       | 250, 500, 1000, 5000, 10000 | 8            |
-| **Splice**              |      60       | Local XAI      | `SV`, `SII`, `k-SII`                                       | 250, 500, 1000, 5000, 10000 | 10           |
+| **Mushroom**            |      22       | Local XAI      | `SV`, `SII`, `k-SII`                                       | 250, 500, 1000, 5000, 10000 | 30           |
+| **Soybean**             |      35       | Local XAI      | `SV`, `SII`, `k-SII`                                       | 250, 500, 1000, 5000, 10000 | 30           |
+| **Splice**              |      60       | Local XAI      | `SV`, `SII`, `k-SII`                                       | 250, 500, 1000, 5000, 10000 | 30(15 with SV)           |
 | **TaiwaneseBankruptcy** |      94       | Local XAI      | `SV`, `SII`, `k-SII`                                       | 250, 500, 1000, 5000, 10000 | 10           |
 | **Arrhythmia**          |      279      | Local XAI      | `SV`                                                       | 1000, 5000, 10000           | 5            |
 | **Arrhythmia**          |      279      | Local XAI      | `SII`                                                      | 500, 1000, 5000             | 10           |
