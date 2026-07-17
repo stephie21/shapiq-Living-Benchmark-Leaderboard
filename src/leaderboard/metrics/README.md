@@ -1,6 +1,6 @@
-# Benchmark Metrics and PDL Sensitivity Analysis
+# Benchmark Metrics
 
-This page documents the implemented metrics subsystem and a proposed Pairwise Difference Learning sensitivity analysis for the benchmark. It uses three evidence labels throughout:
+This page documents the implemented metrics subsystem. It uses three evidence labels throughout:
 
 * **Repository implementation evidence** means behavior present in the repository code or tests named here.
 * **Literature evidence** means a claim supported by the cited papers.
@@ -8,8 +8,7 @@ This page documents the implemented metrics subsystem and a proposed Pairwise Di
 
 ## Contribution Scope
 
-This work focuses on the metrics subsystem and the Pairwise Difference Learning prototype for sensitivity analysis. The Elo scorer is an existing independently developed repository component and is not part of this contribution. It is mentioned only to distinguish global leaderboard scoring from context-dependent PDL sensitivity analysis.
-
+This work focuses on the metrics subsystem.
 ## Metrics Overview
 
 **Implemented. Repository implementation evidence.** The metrics subsystem is centered on `Metric`, `MetricResult`, and `MetricSpec`. The abstract metric API lives in `src/leaderboard/metrics/base.py`. Concrete metric classes live in `src/leaderboard/metrics/distance_metrics.py` and `src/leaderboard/metrics/ranking_metrics.py`. The registry in `src/leaderboard/metrics/registry.py` exposes `METRIC_KEYS`, `METRIC_SPECS`, and `METRICS`.
@@ -755,8 +754,4 @@ The Elo scorer is an existing repository component, not part of this contributio
 | Elo scorer | Existing | Not part of this contribution |
 
 ## References
-
-* [TabPFN] Noah Hollmann, Samuel Muller, Katharina Eggensperger, Frank Hutter. “TabPFN: A Transformer That Solves Small Tabular Classification Problems in a Second.” ICLR 2023. arXiv:2207.01848. DOI 10.48550/arXiv.2207.01848.
-* [PDL-Regression] Sebastian J. Wetzel, Roger G. Melko, Isaac Tamblyn. “Twin neural network regression is a semi-supervised regression algorithm.” Machine Learning: Science and Technology 3(4), 045007 (2022). DOI 10.1088/2632-2153/ac9885.
-* [PDL-Classification] Mohamed Karim Belaid, Maximilian Rabus, Eyke Hullermeier. “Pairwise Difference Learning for Classification.” arXiv:2406.20031 (2024). arXiv DOI 10.48550/arXiv.2406.20031.
 * [ProxySPEX] Landon Butler, Abhineet Agarwal, Justin Kang, Yigit Efe Erginbas, Bin Yu, Kannan Ramchandran. “ProxySPEX: Inference-Efficient Interpretability via Sparse Feature Interactions in LLMs.” NeurIPS 2025, Section 3.1, Eq. (2), official supplied URL.
