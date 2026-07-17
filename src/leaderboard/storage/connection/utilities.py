@@ -48,6 +48,18 @@ def _process(raw_runs: list[dict]) -> pd.DataFrame:
     return _aggregate(runs_df)
 
 
+def process_raw_runs(raw_runs: list[dict]) -> pd.DataFrame:
+    """Process raw run documents, filter failures, flatten metrics, and aggregate.
+
+    Args:
+        raw_runs: Raw run documents from a storage backend.
+
+    Returns:
+        Aggregated DataFrame ready for the leaderboard UI.
+    """
+    return _process(raw_runs)
+
+
 def _aggregate(df: pd.DataFrame) -> pd.DataFrame:
     """Aggregate runs by game, approximator, and budget, computing mean and std for each metric."""
     avail_metrics = [m for m in METRICS if m in df.columns]
@@ -99,6 +111,23 @@ def _get_seed(document: dict[str, Any]) -> int | None:
         raise ValueError from None
 
     return seed
+
+
+def _matches_filter(document: dict[str, Any], filter_dict: dict[str, Any]) -> bool:
+    """Return True if *document* matches all key/value pairs in *filter_dict*.
+
+    Args:
+        document: The run document to check.
+        filter_dict: A dictionary of key/value pairs to match against the document.
+
+    Returns:
+        True if the document matches all key/value pairs in the filter, False otherwise.
+    """
+    for key, value in filter_dict.items():
+        if str(document.get(key, "")).strip() != str(value).strip():
+            return False
+
+    return True
 
 
 def _matches_config(document: dict[str, Any], config: RunConfig) -> bool:

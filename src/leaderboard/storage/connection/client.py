@@ -10,7 +10,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, Any, Self
 
-from leaderboard.storage.connection.utilities import _process
+from leaderboard.storage.connection.utilities import process_raw_runs
 
 if TYPE_CHECKING:
     import pandas as pd
@@ -52,7 +52,7 @@ class DatabaseClient(ABC):
             n_seeds
         """
         raw = self.get_all()
-        return _process(raw)
+        return process_raw_runs(raw)
 
     @abstractmethod
     def test_connection(self) -> bool:
@@ -147,6 +147,17 @@ class DatabaseClient(ABC):
         -------
         int
             Number of deleted documents.
+        """
+
+    @abstractmethod
+    def delete_by_filter(self, filter_dict: dict[str, Any]) -> int:
+        """Delete all documents matching the given filter.
+
+        Args:
+            filter_dict: A dictionary representing the filter criteria.
+
+        Returns:
+            int: Number of deleted documents.
         """
 
     # Read - generic

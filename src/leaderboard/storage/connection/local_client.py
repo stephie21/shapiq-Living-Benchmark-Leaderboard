@@ -18,7 +18,7 @@ from dotenv import load_dotenv
 from leaderboard.storage.data_classes import RunConfig
 
 from .client import DatabaseClient
-from .utilities import _matches_config, _matches_config_with_seed
+from .utilities import _matches_config, _matches_config_with_seed, _matches_filter
 
 
 def _json_default(value: object) -> object:
@@ -216,6 +216,15 @@ class LocalClient(DatabaseClient):
             self._save(kept)
         return deleted
 
+    def delete_by_filter(self, filter_dict: dict[str, Any]) -> int:
+        """Delete all documents matching the given filter."""
+        documents = self._load()
+        kept = [d for d in documents if not _matches_filter(d, filter_dict)]
+        deleted = len(documents) - len(kept)
+        if deleted:
+            self._save(kept)
+        return deleted
+
     # ------------------------------------------------------------------
     # Read — generic
     # ------------------------------------------------------------------
@@ -234,11 +243,11 @@ class LocalClient(DatabaseClient):
 
     def get_unique_configs(self) -> list[RunConfig]:
         """Return one ``RunConfig`` per unique configuration in the store."""
-        seen: set[tuple[Any, ...]] = set()
+        seen: set[str] = set()
         result: list[RunConfig] = []
         for doc in self._load():
             config = RunConfig.from_dict(doc)
-            key = tuple(sorted(config.to_dict().items()))
+            key = json.dumps(config.to_dict(), sort_keys=True)
             if key not in seen:
                 seen.add(key)
                 result.append(config)
