@@ -1,4 +1,4 @@
-## Scoring Manual
+## Scoring README
 
 ### Purpose of the scorer
 
