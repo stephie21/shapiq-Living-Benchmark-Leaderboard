@@ -75,7 +75,7 @@ We present a short tutorial on the usage of the CLI. The CLI is intended to be u
 To run the CLI, please run:
 
 ```
-python3 -m leaderboard.storage.cli.cli
+python -m leaderboard.storage.cli.cli
 ```
 
 Disclaimer. Running this for the first time may take some time.
