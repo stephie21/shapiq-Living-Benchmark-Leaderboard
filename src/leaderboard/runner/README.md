@@ -1,4 +1,4 @@
-## Runner Manual
+## Runner README
 
 ### Purpose of the runner
 
