@@ -7,9 +7,12 @@
 # 1) Game (Target Dataset) selection
 # ---------------------------------------------------------------------
 # Supported examples (sorted by player count):
-# "CaliforniaHousing" (8), "Nursery" (8), "SOUM" (10), "BikeSharing" (12), "AdultCensus" (14),
-# "Zoo" (16), "Hepatitis" (19), "Thyroid" (21), "Mushroom" (22), "BreastCancer" (30),
-# "Ionosphere" (34), "Soybean" (35), "Annealing" (38), "Arrhythmia" (279)
+# "CaliforniaHousing" (8), "Nursery" (8), "SOUM" (10),
+# "BikeSharing" (12), "AdultCensus" (14),"Zoo" (16),
+# "Hepatitis" (19), "Thyroid" (21), "Mushroom" (22),
+# "BreastCancer" (30), "Ionosphere" (34), "Soybean" (35),
+# "Annealing" (38), "Splice" (60), "TaiwaneseBankruptcy" (94),
+# "Arrhythmia" (279)
 
 # REGRESSION_GAMES: "BikeSharing","CaliforniaHousing"
 
@@ -41,15 +44,36 @@ index: "SV"
 max_order: 1
 
 # ---------------------------------------------------------------------
-# 3) Game-specific parameters (Universal Configuration Template)
+# 3) Model parameters
 # ---------------------------------------------------------------------
-# This "All-in-One" dictionary holds parameters for all game families.
-# Thanks to the Pydantic validator layer (models.py), family-incompatible
-# fields will be automatically purged at runtime before instantiation.
-# You can safely leave unused parameters as they are.
+# Select the underlying machine learning model to be explained.
+# Supported ML models: "decision_tree", "random_forest", "gradient_boosting"
+#
+# --- EXPLANATION OF ML MODELS & RUNTIME IMPACT ---
+# - "decision_tree":
+#     * Description: A single decision tree model.
+#     * Runtime: EXTREMELY FAST.
+#     * When to use: This is the default and highly recommended model for debugging,
+#       running large games (n > 14), and performing quick local tests.
+#       Highly optimized mathematically via shapiq's "TreeExplainer".
+#
+# - "random_forest":
+#     * Description: An ensemble model consisting of many independent trees.
+#     * Runtime: VERY SLOW (Multiplicative Overhead).
+#     * When to use: Useful for comparing how model complexity and non-linearity affect
+#       approximator errors (e.g., MSE).
+#     * Warning: Every single coalition evaluation requires traversing all trees.
+#       Combined with sampling-based approximators (like OwenSampling), this will
+#       drastically increase computing time and may cause your computer to overheat.
+#
+# - "gradient_boosting":
+#     * Description: A sequential ensemble model (boosting trees sequentially).
+#     * Runtime: EXTREMELY SLOW.
+#     * When to use: Best for generating benchmarking results on a realistic, high-performing
+#       tabular baseline (like XGBoost/LightGBM style), but only on small games.
+# ---------------------------------------------------------------------
 game_params:
-  # --- Universal Game Control ---
-  model_name: "decision_tree"      # Supported ML models: "decision_tree", "random_forest", "gradient_boosting"
+  model_name: "decision_tree"      # Default is "decision_tree" for speed and stability
   normalize: true                  # Center game values to be 0 for the empty feature set. Recommended: true (except for SOUM)
   verbose: false                   # Enable internal game-level debugging logs. Defaults to false.
 
@@ -73,11 +97,10 @@ game_params:
 # 4) Ground truth
 # ---------------------------------------------------------------------
 ground_truth:
-  # "compute" (on-the-fly) or "lookup" (read from cache)
+  # "compute"
   strategy: "compute"
   # "ExactComputer", "TreeExplainer"
   method: "TreeExplainer"
-  storage_path: "data/gt_cache.json"
 
 # ---------------------------------------------------------------------
 # 5) Approximator Algorithms to Compare (List)
@@ -108,16 +131,7 @@ approximators:
 #  - "ProxySPEX"
 #  - "ProxySHAP"
 #
-# If index: "SII"
-#  - "PermutationSamplingSII"
-#  - "KernelSHAPIQ"
-#  - "InconsistentKernelSHAPIQ"
-#  - "SVARMIQ"
-#  - "SHAPIQ"
-#  - "ProxySPEX"
-#  - "ProxySHAP"
-#
-# If index: "k-SII"
+# If index: "SII" or "k-SII"
 #  - "PermutationSamplingSII"
 #  - "KernelSHAPIQ"
 #  - "InconsistentKernelSHAPIQ"

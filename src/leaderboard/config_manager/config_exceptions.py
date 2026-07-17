@@ -19,6 +19,22 @@ class InvalidBudgetError(ValueError):
         super().__init__(f"Budget must be greater than 0, found illegal value: {value}")
 
 
+class InvalidBudgetValueError(ValueError):
+    """Raised when a budget list contains malformed/non-convertible entries.
+
+    For example: '-' or '' or non-numeric strings in `budgets`.
+    """
+
+    def __init__(self, entries: list[object]) -> None:
+        """Initialize the exception with configuration entries."""
+        formatted = ", ".join(repr(e) for e in entries)
+        message = (
+            f"Malformed budget entries found: [{formatted}]. "
+            "Budgets must be integers (or numeric strings) and cannot be '-' or empty."
+        )
+        super().__init__(message)
+
+
 class UnsupportedApproximatorError(ValueError):
     """Raised when an approximator name is not recognized."""
 
@@ -129,31 +145,33 @@ class UnsupportedImputerError(ValueError):
     """Exception raised when an imputer method is not supported."""
 
     def __init__(self, imputer: str, supported_imputers: set[str] | list[str]) -> None:
-        """Initialize the UnsupportedImputerError with the invalid imputer and allowed options."""
-        formatted_imputers = ", ".join(sorted(supported_imputers))
-        message = f"Unsupported imputer '{imputer}'. Available imputers: {formatted_imputers}"
-        super().__init__(message)
+        """Initialize the exception with configuration entries."""
+        body = (
+            f"Your input imputer: '{imputer}' is invalid!\n\n"
+            f"Available imputers are:\n  {sorted(supported_imputers)}"
+        )
+        super().__init__(format_config_error("INVALID INPUT AT PARAMETER 'imputer'", body))
 
 
-class InvalidBudgetStrategyError(ValueError):
-    """Exception raised when an invalid budget policy strategy is provided."""
+class InvalidParameterError(ValueError):
+    """Raised when any string parameter is not found in the constants whitelist."""
 
-    def __init__(self, strategy: str) -> None:
-        """Initialize the InvalidBudgetStrategyError with the invalid strategy value."""
-        message = f"budget_policy.strategy must be 'range' when provided, but got '{strategy}'."
-        super().__init__(message)
+    def __init__(self, param_name: str, input_value: object, allowed_values: list | set) -> None:
+        """Initialize the exception with configuration entries."""
+        body = (
+            f"Your input for '{param_name}': '{input_value}' is invalid!\n\n"
+            f"Allowed values are:\n  {sorted(allowed_values)}"
+        )
+        super().__init__(format_config_error(f"INVALID INPUT AT PARAMETER '{param_name}'", body))
 
 
-class InvalidBudgetStepsError(ValueError):
-    """Exception raised when budget_policy.steps is invalid."""
-
-    def __init__(self, steps_input: object, *, is_negative: bool = False) -> None:
-        """Initialize the InvalidBudgetStepsError based on the type of validation failure."""
-        if is_negative:
-            message = f"budget_policy.steps must be greater than 0, but got {steps_input}."
-        else:
-            message = (
-                f"budget_policy.steps must be an integer greater than 0, "
-                f"but got unacceptable value '{steps_input}'."
-            )
-        super().__init__(message)
+def format_config_error(title: str, body: str) -> str:
+    """Format a critical configuration error with a standard UI template."""
+    return (
+        "\n"
+        "################################################################################\n"
+        f"💥 CRITICAL CONFIGURATION ERROR: {title.upper()}\n"
+        "################################################################################\n"
+        f"{body}\n"
+        "################################################################################\n"
+    )
